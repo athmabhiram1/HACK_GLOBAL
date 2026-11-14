@@ -1,0 +1,7 @@
+# BatonGate offline Deps-gate fixture (parse-only, never installed).
+# KNOWN-VULN CANARY: the jinja2==2.4.1 line below MUST be flagged
+# (critical reachable CVE per 02-architecture.md §3.2 offline fallback).
+jinja2==2.4.1  # <-- known-vuln canary: flagged Critical/CVSS 9.8/reachable
+requests==2.28.1
+urllib3==1.26.15
+django==3.2.19
