@@ -15,7 +15,7 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from backend.app import voice_gate
@@ -306,8 +306,18 @@ def get_job(job_id: str):
 
 
 @app.post("/api/voice")
-def post_voice(body: dict):
-    audio_b64 = body.get("audio_b64") if isinstance(body, dict) else None
+async def post_voice(request: Request):
+    """Best-effort transcript; any malformed body -> 200 {transcript: None}."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    if isinstance(body, dict):
+        audio_b64 = body.get("audio_b64")
+    elif isinstance(body, str):
+        audio_b64 = body
+    else:
+        audio_b64 = None
     return voice_gate.transcribe(audio_b64)
 
 

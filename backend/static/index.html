@@ -1,326 +1,1392 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BatonGate — Launch Score</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="BatonGate — paste a repo, get a verdict. 5 security gates, 0–100 Launch Score, evidence bundle.">
+<title>BatonGate — Preflight for vibe-coded repos</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%23E8490F'/><text x='32' y='44' font-family='monospace' font-size='34' font-weight='bold' fill='%23F2EFE7' text-anchor='middle'>B</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0f1115; --card:#1a1e26; --ink:#e8ecf1; --mut:#9aa3b2;
-          --ok:#34c77b; --warn:#e5a13d; --bad:#e5534b; --line:#2a303b; }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink);
-         font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
-  .wrap { max-width:720px; margin:0 auto; padding:20px 16px 48px; }
-  header h1 { margin:0 0 4px; font-size:24px; }
-  header p { margin:0 0 16px; color:var(--mut); font-size:14px; }
-  form#gate-form { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
-  form#gate-form input[type=text] { flex:1 1 280px; padding:10px 12px;
-      border:1px solid var(--line); border-radius:8px; background:#12151c; color:var(--ink); }
-  button { padding:10px 16px; border:0; border-radius:8px; cursor:pointer;
-      background:#2f6fed; color:#fff; font-weight:600; }
-  button.ghost { background:transparent; border:1px solid var(--line); color:var(--ink); }
-  button:disabled { opacity:.5; cursor:default; }
-  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-         margin:8px 0 16px; font-size:14px; color:var(--mut); }
-  #error { color:var(--bad); min-height:1.2em; margin:8px 0; font-size:14px; }
-  #status { color:var(--mut); font-size:14px; margin:8px 0; }
-  .scorebar { display:flex; gap:16px; align-items:center; margin:16px 0; }
-  .ring { width:120px; height:120px; flex:0 0 120px; }
-  .ring .num { font-size:28px; font-weight:700; fill:var(--ink); }
-  .pill { display:inline-block; padding:4px 14px; border-radius:999px;
-          font-weight:700; letter-spacing:.06em; }
-  .pill.SHIP { background:rgba(52,199,123,.15); color:var(--ok); border:1px solid var(--ok); }
-  .pill.FIX { background:rgba(229,161,61,.15); color:var(--warn); border:1px solid var(--warn); }
-  .pill.BLOCKED { background:rgba(229,83,75,.15); color:var(--bad); border:1px solid var(--bad); }
-  .cards { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px;
-          padding:12px; font-size:14px; }
-  .card.full { grid-column:1 / -1; }
-  .card h3 { margin:0 0 4px; font-size:14px; text-transform:capitalize; }
-  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
-  .dot.pass { background:var(--ok); } .dot.warn { background:var(--warn); }
-  .dot.fail { background:var(--bad); } .dot.queued { background:var(--mut); }
-  .card .sum { color:var(--ink); }
-  .card .det { color:var(--mut); font-size:13px; margin-top:6px; word-break:break-word; }
-  .card a { color:#7aa5ff; }
-  #extras { margin:12px 0; }
-  pre#logtail { background:#0a0c10; border:1px solid var(--line); border-radius:10px;
-      padding:12px; max-height:220px; overflow:auto; font-size:12px; white-space:pre-wrap; }
-  ul#drift { padding-left:20px; font-size:14px; }
-  .btns { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
-  #summary { font-size:15px; margin:8px 0; }
-  @media (max-width:560px) {
-    .cards { grid-template-columns:1fr; }
-    .ring { width:84px; height:84px; flex-basis:84px; }
-    .ring .num { font-size:20px; }
-    .wrap { padding:12px 10px 32px; }
-  }
+/* ══════════════ TOKENS / RESET ══════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --paper:#F2EFE7; --paper2:#E9E4D5; --card:#FAF7EE;
+  --ink:#171310; --ink2:rgba(23,19,16,.64); --ink3:rgba(23,19,16,.40);
+  --line:rgba(23,19,16,.15); --line2:rgba(23,19,16,.35);
+  --orange:#E8490F; --green:#177B48; --amber:#9A5B00; --red:#C22B1D;
+  --term:#161209; --termtx:#E8DFC9; --termok:#56D98A; --termwarn:#F0B23E; --termerr:#FF6B54; --termdim:rgba(232,223,201,.38);
+  --disp:'Archivo',sans-serif; --ser:'Instrument Serif',serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font:400 16px/1.6 var(--disp);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+section{scroll-margin-top:76px}
+a{color:inherit}
+::selection{background:var(--orange);color:var(--paper)}
+:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:var(--paper)}
+::-webkit-scrollbar-thumb{background:var(--ink);border:3px solid var(--paper);border-radius:0}
+img,svg{display:block}
+button{font-family:inherit;cursor:pointer}
+
+/* ══════════════ UTILITIES ══════════════ */
+.wrap{max-width:1220px;margin:0 auto;padding:0 28px}
+.mono{font-family:var(--mono)}
+.klabel{font:500 11px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink2)}
+em.ser{font:italic 400 .98em var(--ser);color:var(--orange);text-transform:none;letter-spacing:0}
+.disp{font-family:var(--disp);font-stretch:118%;font-weight:900;letter-spacing:-.02em;text-transform:uppercase}
+
+.btn{display:inline-flex;align-items:center;gap:9px;font:600 12px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;
+  padding:14px 22px;border:2px solid var(--ink);background:transparent;color:var(--ink);border-radius:3px;
+  box-shadow:3px 3px 0 var(--ink);transition:transform .15s,box-shadow .15s,background .15s,color .15s;text-decoration:none;user-select:none}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 var(--ink)}
+.btn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
+.btn.pri{background:var(--orange);color:#fff}
+.btn.pri:hover{background:var(--ink)}
+.btn.disabled{opacity:.32;pointer-events:none}
+.btn.sm{padding:10px 14px;font-size:11px;box-shadow:2px 2px 0 var(--ink)}
+
+/* registration marks */
+.reg{position:absolute;width:14px;height:14px;pointer-events:none;opacity:.55}
+.reg::before,.reg::after{content:'';position:absolute;background:var(--ink)}
+.reg::before{left:50%;top:0;bottom:0;width:1px}
+.reg::after{top:50%;left:0;right:0;height:1px}
+.reg.tl{top:-7px;left:-7px}.reg.tr{top:-7px;right:-7px}.reg.bl{bottom:-7px;left:-7px}.reg.br{bottom:-7px;right:-7px}
+
+/* ══════════════ BOOT OVERLAY ══════════════ */
+#boot{position:fixed;inset:0;z-index:200;background:var(--ink);color:var(--termtx);display:flex;align-items:center;justify-content:center;
+  transition:transform .55s cubic-bezier(.7,0,.3,1) .1s;cursor:pointer}
+#boot.off{transform:translateY(-101%)}
+#bootLines{font:500 13px/2.1 var(--mono);letter-spacing:.08em;min-width:320px}
+#bootLines .ok{color:var(--termok)}
+#bootLines .og{color:var(--orange)}
+#bootLines .dim{color:var(--termdim)}
+@media(prefers-reduced-motion:reduce){#boot{display:none}}
+
+/* ══════════════ GRAIN + PROGRESS ══════════════ */
+.grain{position:fixed;inset:-60%;z-index:90;pointer-events:none;opacity:.05;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grain .9s steps(6) infinite}
+@keyframes grain{0%{transform:translate(0,0)}20%{transform:translate(-24px,18px)}40%{transform:translate(18px,-30px)}60%{transform:translate(-30px,-12px)}80%{transform:translate(24px,24px)}100%{transform:translate(-12px,30px)}}
+#prog{position:fixed;top:0;left:0;height:3px;width:0;background:var(--orange);z-index:150}
+
+/* ══════════════ NAV ══════════════ */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--paper);border-bottom:2px solid var(--ink)}
+.navin{max-width:1220px;margin:0 auto;padding:0 28px;height:58px;display:flex;align-items:center;gap:26px}
+.logo{display:flex;align-items:center;gap:10px;font:900 15px var(--disp);font-stretch:118%;letter-spacing:.02em;text-decoration:none}
+.logo .mark{width:20px;height:20px;background:var(--orange);border:2px solid var(--ink);border-radius:3px;display:grid;place-items:center;color:var(--paper);font:700 11px var(--mono)}
+.nl{display:flex;gap:2px;margin-left:auto}
+.nl a{font:500 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink2);padding:8px 11px;text-decoration:none;border-bottom:2px solid transparent;transition:.2s}
+.nl a i{font-style:normal;color:var(--orange);margin-right:5px}
+.nl a:hover{color:var(--ink)}
+.nl a.active{color:var(--ink);border-bottom-color:var(--orange)}
+.navcta{font:600 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:3px;text-decoration:none;transition:.2s;white-space:nowrap}
+.navcta:hover{background:var(--orange)}
+@media(max-width:1020px){.nl{display:none}.navcta{margin-left:auto}}
+
+/* ══════════════ HERO ══════════════ */
+#top{position:relative;padding:150px 0 0;overflow:hidden}
+#top::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(23,19,16,.045) 0 1px,transparent 1px 56px),
+             repeating-linear-gradient(90deg,rgba(23,19,16,.045) 0 1px,transparent 1px 56px);
+  -webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}
+.herogrid{display:grid;grid-template-columns:1.15fr .85fr;gap:56px;align-items:start;position:relative}
+@media(max-width:1020px){.herogrid{grid-template-columns:1fr}}
+.herometas{display:flex;justify-content:space-between;font:500 10.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);
+  border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:34px}
+h1{font:900 clamp(52px,8.2vw,104px)/0.96 var(--disp);font-stretch:118%;letter-spacing:-.025em;text-transform:uppercase;margin:0 0 26px}
+h1 .hl{display:block}
+h1 em.ser{font-size:.94em;font-weight:400}
+.herosub{color:var(--ink2);font-size:17px;max-width:560px;margin-bottom:34px}
+.herosub b{color:var(--ink);font-weight:700}
+.heroctas{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:0}
+
+/* rotating seal */
+.seal{position:absolute;top:6px;right:0;width:118px;height:118px;z-index:2}
+.seal svg{width:100%;height:100%;animation:spin 22s linear infinite}
+.seal text{font:600 10.5px var(--mono);letter-spacing:.3em;fill:var(--ink2)}
+.seal .core{position:absolute;inset:0;display:grid;place-items:center}
+.seal .core span{width:52px;height:52px;background:var(--ink);color:var(--paper);border-radius:50%;display:grid;place-items:center;font:900 15px var(--disp)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:1020px){.seal{display:none}}
+
+/* hero stats strip */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);border-block:2px solid var(--ink);margin-top:70px;background:var(--card)}
+.stat{padding:20px 24px;border-left:1px solid var(--line)}
+.stat:first-child{border-left:none}
+.stat b{display:block;font:900 30px var(--disp);font-stretch:114%;letter-spacing:-.02em}
+.stat b .u{color:var(--orange)}
+.stat span{font:500 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink2)}
+@media(max-width:680px){.stats{grid-template-columns:1fr 1fr}.stat:nth-child(3){border-left:none}.stat{padding:14px 16px}.stat b{font-size:24px}}
+
+/* mini terminal (shared) */
+.term{background:var(--term);border:2px solid var(--ink);border-radius:5px;overflow:hidden;box-shadow:6px 6px 0 var(--ink);position:relative}
+.thead{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid rgba(232,223,201,.14);background:rgba(232,223,201,.04)}
+.tdot{width:9px;height:9px;border-radius:50%;border:1px solid rgba(232,223,201,.4)}
+.tdot.r{background:#C7402E}.tdot.y{background:#C98F2A}.tdot.g{background:#3E8F57}
+.ttitle{font:500 10.5px var(--mono);letter-spacing:.14em;color:var(--termdim);margin-left:6px;text-transform:uppercase}
+.tbody{padding:16px 18px;font:400 12.5px/1.95 var(--mono);color:var(--termtx);position:relative}
+.tbody::after{content:'';position:absolute;left:0;right:0;top:-45%;height:36%;pointer-events:none;
+  background:linear-gradient(transparent,rgba(240,178,62,.05),transparent);animation:scan 6s linear infinite}
+@keyframes scan{to{top:135%}}
+.tline{white-space:pre-wrap;word-break:break-word}
+.tline.cmd{color:#F5EEDC}
+.tline .pr{color:var(--termwarn);font-weight:600}
+.tline .tm{color:var(--termdim)}
+.tline.ok{color:var(--termok)}.tline.warn{color:var(--termwarn)}.tline.err{color:var(--termerr)}.tline.dim{color:var(--termdim)}
+.tline.verdict{color:#F5EEDC;font-weight:600}
+.tline.verdict .v-b{color:var(--termerr)}.tline.verdict .v-f{color:var(--termwarn)}.tline.verdict .v-s{color:var(--termok)}
+.cursor{display:inline-block;width:8px;height:14px;background:var(--termwarn);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.heroterm .tbody{min-height:218px}
+
+/* ══════════════ TICKER ══════════════ */
+.ticker{background:var(--ink);color:var(--paper);border-block:2px solid var(--ink);overflow:hidden;margin-top:-2px;position:relative;z-index:3}
+.tk{display:inline-flex;align-items:center;white-space:nowrap;padding:11px 0;animation:marq 30s linear infinite;will-change:transform}
+.ticker:hover .tk{animation-play-state:paused}
+.tk span{font:600 11px var(--mono);letter-spacing:.2em;text-transform:uppercase;padding:0 26px;display:flex;align-items:center;gap:26px}
+.tk span::after{content:'◆';color:var(--orange);font-size:8px}
+@keyframes marq{to{transform:translateX(-50%)}}
+
+/* ══════════════ SECTION HEADER ══════════════ */
+.sect{padding:110px 0 30px}
+.shead{border-top:2px solid var(--ink);padding-top:18px;margin-bottom:44px;display:flex;flex-wrap:wrap;gap:10px 40px;align-items:baseline}
+.shead .idx{font:600 12px var(--mono);letter-spacing:.16em;color:var(--orange);white-space:nowrap}
+.shead h2{font:900 clamp(34px,4.8vw,58px)/1.04 var(--disp);font-stretch:118%;letter-spacing:-.02em;text-transform:uppercase}
+.slead{color:var(--ink2);font-size:16px;max-width:520px;margin-left:auto;align-self:flex-end}
+@media(max-width:860px){.slead{margin-left:0}}
+
+/* ══════════════ METHOD (index rows) ══════════════ */
+.mrow{display:grid;grid-template-columns:150px 1fr 300px;gap:30px;padding:34px 10px;border-top:1px solid var(--line2);align-items:start;transition:background .25s;position:relative}
+.mrow:last-child{border-bottom:1px solid var(--line2)}
+.mrow:hover{background:var(--card)}
+.mrow::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--orange);transform:scaleY(0);transition:transform .25s;transform-origin:top}
+.mrow:hover::before{transform:scaleY(1)}
+.mnum{font:900 64px/1 var(--disp);font-stretch:120%;color:transparent;-webkit-text-stroke:1.5px var(--ink)}
+.mrow h3{font:800 24px var(--disp);font-stretch:114%;letter-spacing:-.01em;text-transform:uppercase;margin-bottom:8px}
+.mrow p{color:var(--ink2);font-size:15px;max-width:560px}
+.mtag{justify-self:end;align-self:start;font:500 11px/1.8 var(--mono);color:var(--ink2);border:1px solid var(--line2);padding:10px 14px;border-radius:3px;background:var(--card);white-space:nowrap}
+.mtag b{color:var(--orange);font-weight:600}
+@media(max-width:900px){.mrow{grid-template-columns:80px 1fr;gap:18px}.mnum{font-size:44px}.mtag{grid-column:2;justify-self:start;white-space:normal}}
+
+/* ══════════════ GATES INDEX ══════════════ */
+.gx{border-top:1px solid var(--line2)}
+.gx:last-of-type{border-bottom:1px solid var(--line2)}
+.gxh{width:100%;background:none;border:none;display:grid;grid-template-columns:64px 1fr auto 40px;align-items:center;gap:18px;padding:22px 10px;text-align:left;transition:background .2s}
+.gxh:hover{background:var(--card)}
+.gx .gn{font:600 13px var(--mono);color:var(--orange)}
+.gx h3{font:800 22px var(--disp);font-stretch:114%;text-transform:uppercase;letter-spacing:-.01em}
+.gx .tool{font:500 11px var(--mono);letter-spacing:.1em;color:var(--ink2);text-transform:uppercase}
+.gx .plus{width:30px;height:30px;border:2px solid var(--ink);border-radius:3px;display:grid;place-items:center;transition:transform .3s,background .2s;justify-self:end}
+.gx .plus svg{width:13px;height:13px}
+.gx.open .plus{transform:rotate(45deg);background:var(--orange);border-color:var(--orange);color:#fff}
+.gbody{max-height:0;overflow:hidden;transition:max-height .45s cubic-bezier(.4,0,.2,1)}
+.gx.open .gbody{max-height:460px}
+.gbodyin{display:grid;grid-template-columns:1fr 380px;gap:26px;padding:6px 10px 30px 92px}
+.gbodyin p{color:var(--ink2);font-size:15px;max-width:560px}
+.cmdchip{font:500 11px var(--mono);color:var(--ink);background:var(--paper2);border:1px dashed var(--line2);border-radius:3px;padding:9px 12px;margin-top:14px;display:inline-block;word-break:break-all}
+.gnote{font:500 10.5px/1.9 var(--mono);letter-spacing:.04em;color:var(--ink2);border-left:3px solid var(--orange);padding:4px 0 4px 14px;align-self:start}
+.gnote b{color:var(--ink)}
+@media(max-width:900px){.gxh{grid-template-columns:44px 1fr 40px}.gx .tool{display:none}.gbodyin{grid-template-columns:1fr;padding-left:10px}}
+
+/* ══════════════ DEMO ══════════════ */
+.panel{background:var(--card);border:2px solid var(--ink);border-radius:6px;box-shadow:8px 8px 0 var(--ink);position:relative}
+.paneltop{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 22px;border-bottom:2px solid var(--ink)}
+.paneltop .fig{font:600 11px var(--mono);letter-spacing:.18em;text-transform:uppercase}
+.badge{display:inline-flex;align-items:center;gap:8px;font:600 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink2);border:1px dashed var(--line2);border-radius:3px;padding:6px 12px;margin-left:auto}
+.badge i{width:7px;height:7px;border-radius:50%;background:var(--amber);animation:blip 1.4s infinite}
+@keyframes blip{50%{opacity:.25}}
+
+.cmdbar{display:flex;gap:0;padding:22px;border-bottom:1px solid var(--line)}
+.cmdfield{flex:1;display:flex;align-items:center;gap:10px;background:var(--term);border:2px solid var(--ink);border-radius:4px;padding:0 14px;box-shadow:inset 3px 3px 0 rgba(0,0,0,.4)}
+.cmdfield .ps{color:var(--termwarn);font:600 14px var(--mono)}
+.cmdfield input{flex:1;background:none;border:none;outline:none;color:var(--termtx);font:500 14px var(--mono);padding:15px 0}
+.cmdfield input::placeholder{color:var(--termdim)}
+.mic{width:50px;margin-left:10px;border:2px solid var(--ink);border-radius:4px;background:var(--card);display:grid;place-items:center;transition:.2s;box-shadow:3px 3px 0 var(--ink)}
+.mic:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+.mic.rec{background:var(--red);color:#fff;animation:recpulse 1s infinite}
+.mic svg{width:18px;height:18px}
+@keyframes recpulse{0%,100%{box-shadow:0 0 0 0 rgba(194,43,29,.4)}50%{box-shadow:0 0 0 9px rgba(194,43,29,0)}}
+#analyzeBtn{margin-left:10px}
+.voicechip{display:none;font:500 11px var(--mono);letter-spacing:.06em;color:var(--ink2);padding:0 22px 14px}
+.voicechip.show{display:block}
+.voicechip b{color:var(--orange);font-weight:600}
+
+.samprow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:0 22px 20px}
+.samp{font:500 11px var(--mono);letter-spacing:.08em;padding:8px 13px;border:1.5px solid var(--line2);border-radius:3px;background:transparent;color:var(--ink2);display:flex;gap:8px;align-items:center;transition:.18s}
+.samp:hover{border-color:var(--ink);color:var(--ink);transform:translateY(-1px);background:var(--paper)}
+.samp i{width:8px;height:8px;border-radius:50%}
+.samp i.s{background:var(--green)}.samp i.f{background:var(--amber)}.samp i.b{background:var(--red)}
+.speed{margin-left:auto;font:600 10px var(--mono);letter-spacing:.14em;padding:8px 12px;border:1.5px solid var(--line2);border-radius:3px;background:transparent;color:var(--ink2);transition:.18s}
+.speed:hover{border-color:var(--ink);color:var(--ink)}
+
+/* pipeline strip */
+.pstrip{display:flex;flex-wrap:wrap;gap:6px;padding:14px 22px;border-block:1px solid var(--line);background:var(--paper)}
+.pstep{font:600 9.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;padding:6px 11px;border:1.5px solid var(--line);border-radius:3px;color:var(--ink3);display:flex;gap:7px;align-items:center;transition:.3s}
+.pstep i{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pstep.run{color:var(--amber);border-color:var(--amber);animation:blip 1s infinite}
+.pstep.ok{color:var(--green);border-color:var(--green);background:rgba(23,123,72,.07)}
+.pstep.warn{color:var(--amber);border-color:var(--amber);background:rgba(154,91,0,.07)}
+.pstep.fail{color:var(--red);border-color:var(--red);background:rgba(194,43,29,.07)}
+
+.demogrid{display:grid;grid-template-columns:1.3fr .9fr;gap:0}
+@media(max-width:980px){.demogrid{grid-template-columns:1fr}}
+.demogrid>div{padding:22px}
+.demogrid>div:first-child{border-right:1px solid var(--line)}
+@media(max-width:980px){.demogrid>div:first-child{border-right:none;border-bottom:1px solid var(--line)}}
+.bigterm .tbody{min-height:440px;max-height:440px;overflow-y:auto}
+.bigterm{box-shadow:none;border-radius:4px}
+
+/* gauge card */
+.gcard{border:2px solid var(--ink);border-radius:5px;background:var(--paper);position:relative;box-shadow:5px 5px 0 var(--ink)}
+.gcardtop{display:flex;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);font:600 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink2)}
+.gcardtop b{color:var(--ink)}
+.gaugebox{position:relative;padding:18px 18px 6px}
+#gauge{width:100%;max-width:300px;margin:0 auto;display:block}
+#needle{transform-box:view-box;transform-origin:110px 110px;transition:transform 1.5s cubic-bezier(.17,1.35,.3,1)}
+.gread{position:absolute;left:0;right:0;top:50%;transform:translateY(-32%);display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.gnum{font:900 46px/1 var(--disp);font-stretch:114%;letter-spacing:-.02em;color:var(--ink3)}
+.gz{font:600 9.5px var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--ink3);margin-top:6px}
+.stampzone{display:flex;justify-content:center;padding:8px 0 4px}
+.stamp{display:none;font:800 21px var(--disp);font-stretch:118%;letter-spacing:.16em;text-transform:uppercase;border:3px solid currentColor;border-radius:5px;padding:9px 22px;transform:rotate(-4deg);position:relative;background:rgba(255,255,255,.25)}
+.stamp::after{content:'';position:absolute;inset:3px;border:1px solid currentColor;border-radius:3px;opacity:.6}
+.stamp.show{display:inline-block;animation:stampin .5s cubic-bezier(.2,1.6,.4,1)}
+.stamp.ship{color:var(--green)}.stamp.fix{color:var(--amber)}.stamp.blocked{color:var(--red)}
+@keyframes stampin{0%{opacity:0;transform:rotate(-16deg) scale(1.8)}60%{opacity:1;transform:rotate(-3deg) scale(.94)}80%{transform:rotate(-5deg) scale(1.04)}100%{transform:rotate(-4deg) scale(1)}}
+.blurb{display:none;color:var(--ink2);font-size:13px;line-height:1.65;text-align:center;max-width:330px;margin:10px auto 0;padding:0 20px 14px}
+.blurb.show{display:block;animation:fadeup .5s .1s both}
+@keyframes fadeup{from{opacity:0;transform:translateY(8px)}}
+
+/* gate mini rows */
+.mgates{margin-top:6px;border-top:1px solid var(--line)}
+.mgate{border-bottom:1px solid var(--line)}
+.mgh{width:100%;background:none;border:none;display:grid;grid-template-columns:30px 1fr auto 22px;align-items:center;gap:10px;padding:12px 4px;text-align:left}
+.mgh .mg{font:600 11px var(--mono);color:var(--ink3)}
+.mgh .mn{font:700 14.5px var(--disp);font-stretch:110%;text-transform:uppercase;letter-spacing:0}
+.mgh .ms{font:600 9.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);border:1.5px solid var(--line);border-radius:3px;padding:4px 9px;transition:.3s}
+.mgh .chev{transition:.3s;color:var(--ink3)}
+.mgate.open .chev{transform:rotate(180deg)}
+.mgate.run .ms{color:var(--amber);border-color:var(--amber);animation:blip 1s infinite}
+.mgate.pass .ms{color:var(--green);border-color:var(--green);background:rgba(23,123,72,.08)}
+.mgate.warn .ms{color:var(--amber);border-color:var(--amber);background:rgba(154,91,0,.08)}
+.mgate.fail .ms{color:var(--red);border-color:var(--red);background:rgba(194,43,29,.08)}
+.mgate.fail .mn{color:var(--red)}.mgate.pass .mn{color:var(--green)}.mgate.warn .mn{color:var(--amber)}
+.mgb{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.mgate.open .mgb{max-height:480px;overflow-y:auto}
+.mgb .ginner{padding:4px 4px 16px}
+
+/* evidence bits */
+.evrow{display:flex;justify-content:space-between;gap:12px;padding:8px 11px;background:var(--paper2);border:1px solid var(--line);border-radius:3px;margin-bottom:7px;font:500 11.5px var(--mono);flex-wrap:wrap}
+.evrow .mut{color:var(--ink3)}
+.chipmini{font:600 9px var(--mono);letter-spacing:.06em;padding:2px 7px;border-radius:2px;border:1.5px solid;text-transform:uppercase}
+.chipmini.red{color:var(--red);border-color:var(--red)}
+.chipmini.amber{color:var(--amber);border-color:var(--amber)}
+.chipmini.mint{color:var(--green);border-color:var(--green)}
+.fixline{font:500 12px var(--mono);color:var(--ink2);margin:9px 0 5px}
+.fixline .fx{color:var(--ink);background:var(--paper2);border:1px solid var(--line2);padding:2px 8px;border-radius:2px;font-weight:600}
+.note{font:italic 400 11.5px var(--ser);color:var(--ink3);margin-top:9px;font-size:13px}
+.exa{font:400 12px/2 var(--disp);color:var(--ink2);margin-top:10px}
+.exa a{color:var(--orange);text-decoration:none;border-bottom:1.5px dotted var(--orange)}
+.costline{font:600 15px var(--mono);color:var(--ink);margin-bottom:9px}
+.costline .save{color:var(--green)}
+.logtail{font:400 10.5px/1.8 var(--mono);background:var(--term);color:var(--termtx);border:2px solid var(--ink);border-radius:3px;padding:11px 13px;white-space:pre-wrap;margin-top:9px}
+.logtail .lr{color:var(--termerr)}.logtail .lg{color:var(--termok)}
+.minibtn{font:600 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:7px 12px;border:1.5px solid var(--ink);border-radius:3px;background:transparent;color:var(--ink);box-shadow:2px 2px 0 var(--ink);margin-top:10px;transition:.15s}
+.minibtn:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--ink);background:var(--orange);color:#fff;border-color:var(--ink)}
+.minibtn:active{transform:translate(1px,1px);box-shadow:0 0 0 var(--ink)}
+
+.actions{display:flex;gap:12px;flex-wrap:wrap;padding:20px 22px;border-top:2px solid var(--ink)}
+.reportwrap{display:none;margin:0 22px 22px}
+.reportwrap.show{display:block}
+.reportframe{border:2px solid var(--ink);border-radius:4px;overflow:hidden}
+.rfhead{display:flex;justify-content:space-between;align-items:center;background:var(--ink);color:var(--paper);padding:9px 14px;font:600 10px var(--mono);letter-spacing:.16em;text-transform:uppercase}
+.rfhead button{background:none;border:none;color:var(--paper);font:600 14px var(--mono)}
+.reportwrap pre{background:var(--term);color:var(--termtx);margin:0;padding:16px 18px;font:400 11.5px/1.75 var(--mono);max-height:320px;overflow:auto;white-space:pre}
+.reportwrap .k{color:var(--termwarn)}
+.reportwrap .n{color:var(--termok)}
+
+/* ══════════════ SYSTEM ══════════════ */
+.sysgrid{display:grid;grid-template-columns:1.25fr 1fr;gap:40px}
+@media(max-width:920px){.sysgrid{grid-template-columns:1fr}}
+.node{border:2px solid var(--ink);border-radius:4px;background:var(--card);padding:16px 20px;position:relative;transition:transform .2s,box-shadow .2s}
+.node:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--ink)}
+.node b{font:800 15px var(--disp);font-stretch:112%;text-transform:uppercase;display:block}
+.node span{font:400 12px var(--mono);color:var(--ink2);display:block;margin-top:3px}
+.node .gchips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.node .gchips em{font:600 9px var(--mono);font-style:normal;letter-spacing:.1em;padding:3px 8px;border:1.5px solid var(--ink);border-radius:2px;text-transform:uppercase}
+.node.hub{background:var(--ink);color:var(--paper)}
+.node.hub span{color:rgba(242,239,231,.6)}
+.node.hub .gchips em{border-color:var(--orange);color:var(--orange)}
+.flowarr{text-align:center;color:var(--orange);font:700 15px var(--mono);padding:2px 0}
+.srcrow{display:grid;grid-template-columns:130px 1fr;gap:14px;padding:15px 4px;border-top:1px solid var(--line2);font-size:14px;color:var(--ink2);align-items:baseline}
+.srcrow:last-child{border-bottom:1px solid var(--line2)}
+.srcrow b{font:700 12px var(--mono);color:var(--ink);text-transform:uppercase;letter-spacing:.04em}
+.srcrow .opt{font:600 8.5px var(--mono);letter-spacing:.1em;color:var(--paper);background:var(--amber);border-radius:2px;padding:2px 6px;margin-left:6px;vertical-align:2px}
+.srcrow .never{font:600 9px var(--mono);letter-spacing:.08em;color:var(--red);border:1.5px solid var(--red);border-radius:2px;padding:1px 6px;text-transform:uppercase}
+
+/* ══════════════ SAFETY ══════════════ */
+.safegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--ink);border:2px solid var(--ink)}
+.scell{background:var(--card);padding:24px 22px;transition:background .2s}
+.scell:hover{background:var(--paper2)}
+.scell h3{font:800 15px var(--disp);font-stretch:112%;text-transform:uppercase;display:flex;gap:10px;align-items:center;margin-bottom:9px}
+.scell h3 .no{font:600 10px var(--mono);color:var(--orange)}
+.scell p{font-size:13px;color:var(--ink2)}
+.scell .mono{font:500 10.5px var(--mono);color:var(--orange);display:block;margin-top:11px;word-break:break-all}
+@media(max-width:900px){.safegrid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.safegrid{grid-template-columns:1fr}}
+
+/* ══════════════ PLAN ══════════════ */
+.plangrid{display:grid;grid-template-columns:1fr 1fr;gap:44px}
+@media(max-width:920px){.plangrid{grid-template-columns:1fr}}
+.chk{display:flex;gap:14px;padding:13px 4px;border-top:1px solid var(--line);font-size:14.5px;color:var(--ink2);align-items:flex-start}
+.chk:last-child{border-bottom:1px solid var(--line)}
+.chk .box{flex-shrink:0;width:16px;height:16px;border:2px solid var(--ink);border-radius:2px;background:var(--orange);display:grid;place-items:center;margin-top:3px}
+.chk .box svg{width:10px;height:10px;color:#fff}
+.chk b{color:var(--ink);font-weight:700}
+.waves{display:grid;grid-template-columns:repeat(6,1fr);gap:0;position:relative;margin-top:10px}
+.waves::before{content:'';position:absolute;top:8px;left:4%;right:4%;height:2px;background:var(--ink)}
+.wv{position:relative;padding:0 8px}
+.wv i{position:relative;display:block;width:16px;height:16px;border-radius:50%;background:var(--paper);border:3px solid var(--orange);margin:0 auto;z-index:1}
+.wv b{display:block;text-align:center;font:700 12px var(--mono);color:var(--orange);margin-top:12px}
+.wv span{display:block;text-align:center;font-size:11px;color:var(--ink2);margin-top:4px;line-height:1.5}
+@media(max-width:680px){.waves{grid-template-columns:1fr;gap:18px}.waves::before{left:8px;right:auto;top:8px;bottom:8px;width:2px;height:auto}.wv{padding-left:34px}.wv i{position:absolute;left:0;top:2px;margin:0}.wv b,.wv span{text-align:left;margin-top:0}}
+
+/* ══════════════ FOOTER ══════════════ */
+footer{border-top:2px solid var(--ink);margin-top:110px;background:var(--paper2)}
+.bigword{font:900 clamp(60px,14.5vw,190px)/0.9 var(--disp);font-stretch:122%;letter-spacing:-.02em;text-transform:uppercase;padding:44px 0 8px;display:flex;justify-content:space-between;user-select:none}
+.bigword .fl{color:transparent;-webkit-text-stroke:2px var(--ink);transition:color .2s,transform .2s;cursor:default}
+.bigword .fl:hover{color:var(--orange);-webkit-text-stroke:2px var(--orange);transform:translateY(-6px)}
+.footrow{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 0 30px;font:500 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);border-top:1px solid var(--line2)}
+
+/* ══════════════ TOASTS ══════════════ */
+#toasts{position:fixed;bottom:22px;right:22px;z-index:160;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--card);border:2px solid var(--ink);border-left-width:7px;border-radius:4px;padding:13px 18px;min-width:290px;max-width:400px;
+  box-shadow:5px 5px 0 var(--ink);animation:tin .35s cubic-bezier(.2,1.4,.4,1)}
+.toast.err429{border-left-color:var(--amber)}
+.toast.err400{border-left-color:var(--red)}
+.toast.ok{border-left-color:var(--green)}
+.toast.info{border-left-color:var(--orange)}
+.toast b{font:700 11px var(--mono);letter-spacing:.14em;display:block;margin-bottom:4px;text-transform:uppercase}
+.toast.err429 b{color:var(--amber)}.toast.err400 b{color:var(--red)}.toast.ok b{color:var(--green)}.toast.info b{color:var(--orange)}
+.toast span{font-size:13px;color:var(--ink2);line-height:1.5;display:block}
+@keyframes tin{from{opacity:0;transform:translateY(16px) scale(.95)}}
+.toast.out{animation:tout .3s forwards}
+@keyframes tout{to{opacity:0;transform:translateX(24px)}}
+
+/* ══════════════ REVEALS ══════════════ */
+.r{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s cubic-bezier(.22,1,.36,1)}
+.r.in{opacity:1;transform:none}
+.rv{display:block;overflow:hidden}
+.rv>span{display:block;transform:translateY(112%);transition:transform .85s cubic-bezier(.22,1,.36,1)}
+.rv.in>span{transform:none}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .r{opacity:1;transform:none}.rv>span{transform:none}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>BatonGate</h1>
-    <p>Paste a repo URL, get a 0&ndash;100 Launch Score + SHIP / FIX / BLOCKED.</p>
-  </header>
 
-  <form id="gate-form">
-    <input id="repo" type="text" name="repo_url"
-           placeholder="https://github.com/owner/repo" autocomplete="off" />
-    <button type="submit" id="analyze">Analyze</button>
-    <button type="button" id="mic" class="ghost" title="Voice input (optional)">&#127908; Mic</button>
-  </form>
-  <div class="row">
-    <label><input type="checkbox" id="demo" /> demo mode</label>
-    <span id="mic-hint">Mic fills the box; typing always works.</span>
+<!-- boot -->
+<div id="boot"><div id="bootLines"></div></div>
+<div class="grain"></div>
+<div id="prog"></div>
+
+<!-- nav -->
+<nav>
+  <div class="navin">
+    <a href="#top" class="logo"><span class="mark">B</span>BATONGATE<sup style="font:600 8px var(--mono);color:var(--orange)">®</sup></a>
+    <div class="nl" id="nl">
+      <a href="#method" data-sec="method"><i>01</i>Method</a>
+      <a href="#gates" data-sec="gates"><i>02</i>Gates</a>
+      <a href="#demo" data-sec="demo"><i>03</i>Demo</a>
+      <a href="#system" data-sec="system"><i>04</i>System</a>
+      <a href="#safety" data-sec="safety"><i>05</i>Safety</a>
+      <a href="#plan" data-sec="plan"><i>06</i>Ship</a>
+    </div>
+    <a href="#demo" class="navcta">Run demo ▸</a>
   </div>
-  <div id="error"></div>
-  <div id="status"></div>
+</nav>
 
-  <section id="report" hidden>
-    <div class="scorebar">
-      <svg class="ring" viewBox="0 0 120 120" role="img" aria-label="score ring">
-        <circle cx="60" cy="60" r="52" fill="none" stroke="#2a303b" stroke-width="12"/>
-        <circle id="arc" cx="60" cy="60" r="52" fill="none" stroke="#34c77b"
-                stroke-width="12" stroke-linecap="round" transform="rotate(-90 60 60)"/>
-        <text id="score-num" class="num" x="60" y="70" text-anchor="middle">–</text>
-      </svg>
+<!-- ═══════════ HERO ═══════════ -->
+<header id="top">
+  <div class="wrap">
+    <div class="herometas">
+      <span>SYS.LS-01 · REV C</span>
+      <span>FLIGHT CHECK — BUILD FOR HACKGLOBAL 2026</span>
+      <span>OPEN INNOVATION TRACK</span>
+    </div>
+    <div class="herogrid">
       <div>
-        <span id="verdict" class="pill">–</span>
-        <p id="summary"></p>
+        <h1>
+          <span class="hl rv in-view"><span>PASTE A REPO.</span></span>
+          <span class="hl rv in-view" style="transition-delay:.08s"><span>GET A <em class="ser">verdict.</em></span></span>
+        </h1>
+        <p class="herosub r in-view">BatonGate runs vibe-coded repos through <b>5 security gates</b> in throwaway Docker sandboxes on one 2GB Vultr VM — then returns a <b>0–100 Launch Score</b>, a <b>SHIP / FIX / BLOCKED</b> stamp, and a full evidence bundle in under 3 minutes. Every claim carries a log, a SARIF report, or a citation.</p>
+        <div class="heroctas r in-view" style="transition-delay:.1s">
+          <a href="#demo" class="btn pri">▶ Run the live demo</a>
+          <a href="#gates" class="btn">Read the checklist</a>
+        </div>
+      </div>
+      <div style="position:relative">
+        <div class="seal" aria-hidden="true">
+          <svg viewBox="0 0 120 120">
+            <defs><path id="cir" d="M60,60 m-46,0 a46,46 0 1,1 92,0 a46,46 0 1,1 -92,0"/></defs>
+            <text><textPath href="#cir">EVIDENCE FIRST • SINGLE VM • 36H BUILD • ZERO SLOP • </textPath></text>
+          </svg>
+          <div class="core"><span>BG</span></div>
+        </div>
+        <div class="term heroterm r in-view" style="transition-delay:.15s">
+          <div class="thead"><span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span><span class="ttitle">live feed — tty0</span></div>
+          <div class="tbody" id="loopTerm"></div>
+        </div>
       </div>
     </div>
 
-    <div id="cards" class="cards"></div>
+    <div class="stats r in-view" style="transition-delay:.2s">
+      <div class="stat"><b><span data-count="5">0</span><span class="u">▸</span></b><span>core gates</span></div>
+      <div class="stat"><b>&lt;3<span class="u">min</span></b><span>to verdict</span></div>
+      <div class="stat"><b>0–100</b><span>launch score</span></div>
+      <div class="stat"><b>$0.65<span class="u">*</span></b><span>36h compute</span></div>
+    </div>
+  </div>
+</header>
 
-    <div id="extras" hidden>
-      <div class="card full" id="exa-card" hidden>
-        <h3>Fix evidence (Exa, optional)</h3>
-        <div class="det" id="exa-links"></div>
+<!-- ticker -->
+<div class="ticker" aria-hidden="true"><div class="tk" id="tk">
+  <span>SECRETS · PASS — 0 FINDINGS</span><span>DEPS · CVSS 9.8 REACHABLE</span><span>DOCS · 1 STALE REF @ README:31</span><span>COST · SAVE $9/MO</span><span>BUILD · 200 OK / 289MS</span><span>VERDICT · FIX 64/100</span><span>SARIF 2.1.0 · REDACTED</span><span>QUEUE · MAXSIZE 1</span><span>OSV · ONE BATCHED CALL</span><span>LLM · SUMMARIZES, NEVER GATES</span>
+</div></div>
+
+<!-- ═══════════ 01 METHOD ═══════════ -->
+<section id="method" class="sect">
+  <div class="wrap">
+    <div class="shead"><span class="idx">01 / METHOD</span><h2><span class="rv"><span>THREE MOVES, <em class="ser">zero mercy.</em></span></span></h2><p class="slead">No frameworks, no magic. A hardened intake, five sandboxed gates, a verdict engine that only trusts evidence.</p></div>
+    <div class="mrow r">
+      <div class="mnum">01</div>
+      <div><h3>Paste a URL</h3><p>Any public GitHub/GitLab repo. Intake is SSRF-hardened: allowlisted hosts only, DNS-resolve guard against metadata IPs, 50MB cap, submodules disabled, dash-prefixed inputs rejected before a single byte is cloned.</p></div>
+      <div class="mtag">protocol.ext=<b>never</b><br>metadata → <b>REJECT</b></div>
+    </div>
+    <div class="mrow r">
+      <div class="mnum">02</div>
+      <div><h3>Run the gates</h3><p>Secrets → Deps → Docs → Cost → Build, each in a throwaway sandbox on one 2GB VM. The queue holds exactly one job: a second submit gets an honest <b style="color:var(--amber)">429</b> and a retry hint — never a parallel build.</p></div>
+      <div class="mtag">queue=<b>maxsize 1</b><br>--cap-drop=<b>ALL</b></div>
+    </div>
+    <div class="mrow r">
+      <div class="mnum">03</div>
+      <div><h3>Ship the evidence</h3><p>0–100 score, SHIP / FIX / BLOCKED, and proof: downloadable SARIF, redacted log tail, cited fix links, cost simulation. The LLM summarizes redacted results in two sentences — it never decides anything.</p></div>
+      <div class="mtag">exit 0 = <b>SHIP</b><br>exit 1 = <b>FIX / BLOCKED</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 02 GATES ═══════════ -->
+<section id="gates" class="sect">
+  <div class="wrap">
+    <div class="shead"><span class="idx">02 / GATES</span><h2><span class="rv"><span>FIVE GATES, <em class="ser">one verdict.</em></span></span></h2><p class="slead">Every gate has an offline fallback and returns evidence, never a 500. All five decide; the extras never do. Click a row to inspect.</p></div>
+
+    <div class="gx r">
+      <button class="gxh"><span class="gn">G1</span><h3>Secrets</h3><span class="tool">gitleaks 8.18.4 · SARIF</span><span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span></button>
+      <div class="gbody"><div class="gbodyin">
+        <div><p>Scans the snapshot for leaked keys and tokens, redacts every match before it touches the UI or logs, and attaches a downloadable SARIF 2.1.0 report. Findings are labeled "potential exposure — not verified active key." Base64 decode depth is capped at zero so a hostile repo can't OOM the 2GB host.</p><span class="cmdchip">gitleaks detect --source /repo --redact --max-decode-depth=0 --report-format sarif</span></div>
+        <div class="gnote"><b>Fallback:</b> allowlist path note still verdicts. Raw secrets are never logged, rendered, or cached — anywhere.</div>
+      </div></div>
+    </div>
+    <div class="gx r">
+      <button class="gxh"><span class="gn">G2</span><h3>Dependencies</h3><span class="tool">OSV.dev · typosquat · reachability</span><span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span></button>
+      <div class="gbody"><div class="gbodyin">
+        <div><p>Parses manifests without installing anything. One batched OSV querybatch call (24h cache) covers every dependency; typosquats are flagged with a C-extension Levenshtein ≤2 against the top-200; <code class="mono">ast</code> import analysis boosts severity for reachable code paths.</p><span class="cmdchip">POST api.osv.dev/v1/querybatch — 1 call for N deps</span></div>
+        <div class="gnote"><b>Fallback:</b> offline sample <b>requirements.vuln.txt</b> verdicts when OSV is unreachable.</div>
+      </div></div>
+    </div>
+    <div class="gx r">
+      <button class="gxh"><span class="gn">G3</span><h3>Docs</h3><span class="tool">git diff · no LLM decides</span><span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span></button>
+      <div class="gbody"><div class="gbodyin">
+        <div><p>Diffs recent commits against README endpoints and flags stale documentation with exact file:line + character offset, plus a copyable proposed patch. No evidence? It refuses with a stated reason instead of inventing one.</p><span class="cmdchip">git diff HEAD~3 -- README.md docs/ src/</span></div>
+        <div class="gnote"><b>Fallback:</b> <b>{refused:true, reason}</b> — an honest refusal beats a confident hallucination.</div>
+      </div></div>
+    </div>
+    <div class="gx r">
+      <button class="gxh"><span class="gn">G4</span><h3>Cost</h3><span class="tool">Vultr v2 · read-only · $ math</span><span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span></button>
+      <div class="gbody"><div class="gbodyin">
+        <div><p>Reads instances, sizes and volumes with a read-only key held in memory only, then flags idle CPU, unattached volumes and oversized plans — with monthly dollars saved, kg CO₂ avoided, and a ready-to-paste downgrade command.</p><span class="cmdchip">GET api.vultr.com/v2/instances | /sizes | /volumes</span></div>
+        <div class="gnote"><b>Fallback:</b> <b>?demo=1</b> synthetic data — the $ math always renders.</div>
+      </div></div>
+    </div>
+    <div class="gx r">
+      <button class="gxh"><span class="gn">G5</span><h3>Build</h3><span class="tool">docker build/run · healthz probe</span><span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span></button>
+      <div class="gbody"><div class="gbodyin">
+        <div><p>Clones hardened (depth-1, 60s), builds with throttled BuildKit and a 300s kill, runs jailed — 512MB RAM, 0.5 CPU, read-only root, all capabilities dropped, uid 65534 — then probes /healthz with a 2s timeout. Cleanup runs even on failure. On timeout: pre-recorded DEMO REPLAY logs, clearly labeled.</p><span class="cmdchip">--memory=512m --cpus=0.5 --pids-limit=64 --read-only --cap-drop=ALL -u 65534</span></div>
+        <div class="gnote"><b>Fallback:</b> timeout → <b>FIX/BLOCKED</b> + replay log. Never a hang, never a 500.</div>
+      </div></div>
+    </div>
+    <div class="gx r" style="border-style:dashed">
+      <button class="gxh"><span class="gn" style="color:var(--amber)">+</span><h3>Exa fix-links & Wispr voice</h3><span class="tool" style="color:var(--amber)">optional · evidence only</span><span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></span></button>
+      <div class="gbody"><div class="gbodyin">
+        <div><p>Two extras that add evidence and input — and <b>never touch the verdict</b>. Exa attaches ≤2 cited fix links per critical CVE; Wispr fills the repo box from your voice (16kHz wav, converted client-side). Missing keys? They skip silently.</p></div>
+        <div class="gnote"><b>Rule:</b> verdict comes from the 5 core gates. Always. Extras are witnesses, not judges.</div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 03 DEMO ═══════════ -->
+<section id="demo" class="sect">
+  <div class="wrap">
+    <div class="shead"><span class="idx">03 / DEMO</span><h2><span class="rv"><span>RUN IT <em class="ser">live.</em></span></span></h2><p class="slead">Fully simulated pipeline — same stages, same outputs, zero real clones. Pick a sample, paste any github.com URL, or dictate it.</p></div>
+
+    <div class="panel r">
+      <i class="reg tl"></i><i class="reg tr"></i><i class="reg bl"></i><i class="reg br"></i>
+      <div class="paneltop">
+        <span class="fig">FIG.02 — LIVE PIPELINE RUN</span>
+        <span class="badge"><i></i>demo mode · simulated</span>
       </div>
-      <div class="card full" id="voice-card" hidden>
-        <h3>Voice input (Wispr, optional)</h3>
-        <div class="det" id="voice-text"></div>
+
+      <div class="cmdbar">
+        <div class="cmdfield">
+          <span class="ps">$</span>
+          <input id="repoInput" type="text" spellcheck="false" placeholder="https://github.com/demo/vibe-notes-broken" value="https://github.com/demo/vibe-notes-broken" aria-label="Repository URL">
+        </div>
+        <button class="mic" id="micBtn" title="Voice input — Wispr (optional extra)" aria-label="Voice input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0M12 17v4m-3 0h6"/></svg>
+        </button>
+        <button class="btn pri" id="analyzeBtn">Run gates ▸</button>
+      </div>
+      <div class="voicechip" id="voiceChip">🎤 transcript via <b>WISPR FLOW</b> · optional extra — voice never blocks the verdict</div>
+
+      <div class="samprow">
+        <span class="klabel">Samples →</span>
+        <button class="samp" data-scn="ship"><i class="s"></i>clean-chat-app</button>
+        <button class="samp" data-scn="fix"><i class="f"></i>vibe-notes</button>
+        <button class="samp" data-scn="blocked"><i class="b"></i>vibe-notes-broken</button>
+        <button class="speed" id="speedBtn">SPEED 1×</button>
+      </div>
+
+      <div class="pstrip" id="pstrip">
+        <span class="pstep" data-stage="intake"><i></i>Intake</span>
+        <span class="pstep" data-stage="secrets"><i></i>Secrets</span>
+        <span class="pstep" data-stage="deps"><i></i>Deps</span>
+        <span class="pstep" data-stage="docs"><i></i>Docs</span>
+        <span class="pstep" data-stage="cost"><i></i>Cost</span>
+        <span class="pstep" data-stage="build"><i></i>Build</span>
+        <span class="pstep" data-stage="verdict"><i></i>Verdict</span>
+      </div>
+
+      <div class="demogrid">
+        <div>
+          <div class="term bigterm">
+            <div class="thead"><span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span><span class="ttitle" id="termTitle">pipeline — idle · worker 1/1</span></div>
+            <div class="tbody" id="termBody"></div>
+          </div>
+        </div>
+        <div>
+          <div class="gcard">
+            <i class="reg tl"></i><i class="reg tr"></i>
+            <div class="gcardtop"><span>FIG.01 — <b>LAUNCH SCORE</b></span><span id="gJob">JOB · —</span></div>
+            <div class="gaugebox">
+              <svg id="gauge" viewBox="0 0 220 220" aria-hidden="true">
+                <g id="gTrack"></g><g id="gZones"></g><g id="gTicks"></g><g id="gNums"></g>
+                <g id="needle"><path d="M100 110 L110 106.5 L184 108.6 L184 111.4 L110 113.5 Z" fill="#171310"/></g>
+                <circle cx="110" cy="110" r="9" fill="#171310"/><circle cx="110" cy="110" r="3.5" fill="#E8490F"/>
+              </svg>
+              <div class="gread"><div class="gnum" id="scoreNum">—</div><div class="gz" id="zoneTxt">awaiting input</div></div>
+            </div>
+            <div class="stampzone"><div class="stamp" id="stamp">BLOCKED</div></div>
+            <div class="blurb" id="verdictBlurb"></div>
+          </div>
+
+          <div class="mgates">
+            <div class="mgate" data-g="secrets">
+              <button class="mgh" onclick="toggleGate(this.parentElement)"><span class="mg">G1</span><span class="mn">Secrets</span><span class="ms">idle</span><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></button>
+              <div class="mgb"><div class="ginner" id="ev-secrets"></div></div>
+            </div>
+            <div class="mgate" data-g="deps">
+              <button class="mgh" onclick="toggleGate(this.parentElement)"><span class="mg">G2</span><span class="mn">Dependencies</span><span class="ms">idle</span><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></button>
+              <div class="mgb"><div class="ginner" id="ev-deps"></div></div>
+            </div>
+            <div class="mgate" data-g="docs">
+              <button class="mgh" onclick="toggleGate(this.parentElement)"><span class="mg">G3</span><span class="mn">Docs</span><span class="ms">idle</span><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></button>
+              <div class="mgb"><div class="ginner" id="ev-docs"></div></div>
+            </div>
+            <div class="mgate" data-g="cost">
+              <button class="mgh" onclick="toggleGate(this.parentElement)"><span class="mg">G4</span><span class="mn">Cost</span><span class="ms">idle</span><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></button>
+              <div class="mgb"><div class="ginner" id="ev-cost"></div></div>
+            </div>
+            <div class="mgate" data-g="build">
+              <button class="mgh" onclick="toggleGate(this.parentElement)"><span class="mg">G5</span><span class="mn">Build</span><span class="ms">idle</span><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></button>
+              <div class="mgb"><div class="ginner" id="ev-build"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn sm disabled" id="sarifBtn">⬇ Download SARIF</button>
+        <button class="btn sm disabled" id="patchBtn">⧉ Copy fix patch</button>
+        <button class="btn sm disabled" id="jsonBtn">{ } Report JSON</button>
+      </div>
+      <div class="reportwrap" id="reportWrap">
+        <div class="reportframe">
+          <div class="rfhead"><span>REPORT.JSON — GET /api/jobs/&lt;id&gt;</span><button id="rfClose" aria-label="Close">✕</button></div>
+          <pre id="reportPre"></pre>
+        </div>
       </div>
     </div>
+  </div>
+</section>
 
-    <div class="card full" id="cost-card" hidden>
-      <h3>Cost</h3>
-      <div class="det" id="cost-text"></div>
+<!-- ═══════════ 04 SYSTEM ═══════════ -->
+<section id="system" class="sect">
+  <div class="wrap">
+    <div class="shead"><span class="idx">04 / SYSTEM</span><h2><span class="rv"><span>ONE BOX, <em class="ser">no magic.</em></span></span></h2><p class="slead">A single 2GB Vultr instance (~$12/mo) runs FastAPI, a one-worker queue and throwaway sandboxes. Everything else is evidence plumbing.</p></div>
+    <div class="sysgrid">
+      <div class="r">
+        <div class="node"><b>You paste a repo URL</b><span>public github / gitlab · form or voice</span></div>
+        <div class="flowarr">↓</div>
+        <div class="node"><b>FastAPI intake</b><span>SSRF guard · 50MB cap · job id · 429 when queue full</span></div>
+        <div class="flowarr">↓</div>
+        <div class="node hub"><b>Throwaway sandbox — per gate</b>
+          <div class="gchips"><em>secrets</em><em>deps</em><em>docs</em><em>cost</em><em>build</em></div>
+          <span style="margin-top:9px">--cap-drop=ALL · -u 65534 · --read-only · 512MB · 0.5 CPU</span>
+        </div>
+        <div class="flowarr">↓</div>
+        <div class="node"><b>Verdict engine</b><span>0–100 · SHIP / FIX / BLOCKED · exit 0/1 for CI</span></div>
+        <div class="flowarr">↓</div>
+        <div class="node"><b>Evidence bundle</b><span>SARIF · redacted log tail · cited fix links · $ simulation · summary</span></div>
+      </div>
+      <div class="r">
+        <div class="srcrow"><b>OSV.dev</b><span>Batched vulnerability queries, 24h cache, offline sample fallback.</span></div>
+        <div class="srcrow"><b>Vultr API v2</b><span>Instances / sizes / volumes — read-only key, held in memory only.</span></div>
+        <div class="srcrow"><b>Vultr Inference</b><span>Summarizes redacted results, 10s timeout. <span class="never">never gates</span></span></div>
+        <div class="srcrow"><b>Exa</b><span class="opt" style="margin:0 8px 0 0">OPTIONAL</span>Cited fix links per critical CVE — ≤2, skip on failure.</div>
+        <div class="srcrow"><b>Wispr</b><span class="opt" style="margin:0 8px 0 0">OPTIONAL</span>Voice → repo input, 16kHz wav client-side. Text always works.</div>
+        <div class="srcrow"><b>Caddy / Nginx</b><span>Public URL, firewall 80/443, .env on server only.</span></div>
+      </div>
     </div>
+  </div>
+</section>
 
-    <h3>Docs drift</h3>
-    <ul id="drift"></ul>
-
-    <div class="btns">
-      <a id="sarif-dl" href="#" download><button type="button" class="ghost">Download SARIF</button></a>
-      <button type="button" id="copy-fix" class="ghost">Copy fix diff</button>
-      <button type="button" id="rebuild" class="ghost">Rebuild</button>
+<!-- ═══════════ 05 SAFETY ═══════════ -->
+<section id="safety" class="sect">
+  <div class="wrap">
+    <div class="shead"><span class="idx">05 / SAFETY</span><h2><span class="rv"><span>TRUST NOTHING, <em class="ser">prove everything.</em></span></span></h2><p class="slead">We execute strangers' code for a living. Here is the jail.</p></div>
+    <div class="safegrid r">
+      <div class="scell"><h3><span class="no">S1</span>SSRF hardening</h3><p>HTTPS-only allowlist, DNS resolved and checked against private/metadata ranges, redirect-following off, dash-prefixed inputs rejected.</p><span class="mono">DOCKER-USER → 169.254.169.254 REJECT</span></div>
+      <div class="scell"><h3><span class="no">S2</span>Sandbox jail</h3><p>Every build runs read-only, all Linux capabilities dropped, nobody user, hard memory/CPU/PID ceilings on an isolated bridge network.</p><span class="mono">--memory-swap=512m --pids-limit=64</span></div>
+      <div class="scell"><h3><span class="no">S3</span>Secrets hygiene</h3><p>gitleaks --redact before anything renders; log tails redacted like SARIF; API keys server-side only — never in image, bundle, logs or frontend.</p><span class="mono">--max-decode-depth=0 (OOM guard)</span></div>
+      <div class="scell"><h3><span class="no">S4</span>Never a 500</h3><p>Every gate has a fallback: OSV offline sample, cached verdicts, DEMO REPLAY logs on build timeout, static summary when Inference is down.</p><span class="mono">gate fail → FIX / BLOCKED + evidence</span></div>
+      <div class="scell"><h3><span class="no">S5</span>Queue of one</h3><p>A single asyncio worker bound to app lifespan. Backpressure is honest: a second job gets 429 + a retry hint instead of OOM-killing a 2GB box.</p><span class="mono">asyncio.Queue(maxsize=1) · to_thread only</span></div>
+      <div class="scell"><h3><span class="no">S6</span>LLM never gates</h3><p>Vultr Inference writes a 2-sentence summary of redacted results with a 10s timeout and a static template fallback. Verdicts come from evidence.</p><span class="mono">system prompt: "No new verdicts."</span></div>
     </div>
+  </div>
+</section>
 
-    <h3>Log tail (redacted)</h3>
-    <pre id="logtail"></pre>
-  </section>
-</div>
+<!-- ═══════════ 06 PLAN ═══════════ -->
+<section id="plan" class="sect">
+  <div class="wrap">
+    <div class="shead"><span class="idx">06 / SHIP</span><h2><span class="rv"><span>SHIP BY <em class="ser">sunday.</em></span></span></h2><p class="slead">Everything the judges see, locked before the deadline — submitted ≥1h early, because moderator lag is real.</p></div>
+    <div class="plangrid">
+      <div class="r">
+        <div class="chk"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M20 6L9 17l-5-5"/></svg></span><span><b>Public GitHub repo</b> — setup README + architecture diagram</span></div>
+        <div class="chk"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M20 6L9 17l-5-5"/></svg></span><span><b>Live URL</b> — http://&lt;vultr-ip&gt; verified in a private window</span></div>
+        <div class="chk"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M20 6L9 17l-5-5"/></svg></span><span><b>90-second video</b> — problem → live run → verdict + SARIF + $ sim</span></div>
+        <div class="chk"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M20 6L9 17l-5-5"/></svg></span><span><b>Vultr Community form</b> — tagged Build for HackGlobal 2026</span></div>
+        <div class="chk"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M20 6L9 17l-5-5"/></svg></span><span><b>Submitted ≥1h before Sun 12:00 IST</b></span></div>
+      </div>
+      <div class="r">
+        <p class="klabel" style="margin-bottom:8px">BUILD WAVES — STOP-IF-RED PER WAVE</p>
+        <div class="waves">
+          <div class="wv"><i></i><b>W0</b><span>Sat AM<br>skeleton + healthz</span></div>
+          <div class="wv"><i></i><b>W1</b><span>Sat noon<br>secrets + deps</span></div>
+          <div class="wv"><i></i><b>W2</b><span>Sat eve<br>docs + cost + deploy</span></div>
+          <div class="wv"><i></i><b>W3</b><span>Sat night<br>build gate (guarded)</span></div>
+          <div class="wv"><i></i><b>W4</b><span>Sun AM<br>verdict + dashboard</span></div>
+          <div class="wv"><i></i><b>W5</b><span>Sun 10:00<br>submit + reach</span></div>
+        </div>
+        <p style="font-size:13px;color:var(--ink2);margin-top:26px;font-style:italic;font-family:var(--ser);font-size:15px">No wave starts until the previous one is green. Optional extras (Exa, Wispr) only after the 5 core gates pass.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ FOOTER ═══════════ -->
+<footer>
+  <div class="wrap">
+    <div class="bigword" aria-hidden="true">
+      <span class="fl">B</span><span class="fl">A</span><span class="fl">T</span><span class="fl">O</span><span class="fl">N</span><span class="fl">G</span><span class="fl">A</span><span class="fl">T</span><span class="fl">E</span>
+    </div>
+    <div class="footrow">
+      <span>BATONGATE — paste a repo, get a verdict. Built in 36h on one 2GB Vultr VM.</span>
+      <span>Open Innovation · HackGlobal 2026 · Demo page — simulated runs</span>
+    </div>
+  </div>
+</footer>
+
+<div id="toasts"></div>
 
 <script>
-(function () {
-  var form = document.getElementById("gate-form");
-  var repo = document.getElementById("repo");
-  var demo = document.getElementById("demo");
-  var err = document.getElementById("error");
-  var status = document.getElementById("status");
-  var report = document.getElementById("report");
-  var timer = null;
-  var lastUrl = "";
+/* ══════════════════════════════════════════════
+   BATONGATE — demo engine (vanilla, self-contained)
+════════════════════════════════════════════════ */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let SPEED=1, running=false, current=null;
+let usingLive=false, liveReport=null, liveSarifPath=null, voiceTranscript=null;
+const wait=ms=>new Promise(r=>setTimeout(r,ms/SPEED));
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const VX={SHIP:'var(--green)',FIX:'var(--amber)',BLOCKED:'var(--red)'};
+const VTX={SHIP:'#177B48',FIX:'#9A5B00',BLOCKED:'#C22B1D'};
 
-  function showError(msg) { err.textContent = msg || ""; }
+/* ---------- toasts ---------- */
+function toast(kind,title,msg){
+  const t=document.createElement('div');
+  t.className='toast '+kind;
+  t.innerHTML='<b>'+title+'</b><span>'+msg+'</span>';
+  $('#toasts').appendChild(t);
+  setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),300)},3800);
+}
+function copyText(txt,label){
+  const done=()=>toast('ok','Copied',(label||'Text')+' → clipboard');
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(done).catch(fb)}else fb();
+  function fb(){const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}catch(e){toast('info','Copy failed','Select the text manually.')}ta.remove()}
+}
 
-  form.addEventListener("submit", function (ev) {
-    ev.preventDefault();
-    showError("");
-    var url = repo.value.trim();
-    if (!url) { showError("Paste an https://github.com/owner/repo URL."); return; }
-    lastUrl = url;
-    status.textContent = "Queued…";
-    report.hidden = true;
-    fetch("/api/gate", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({repo_url: url, demo: demo.checked,
-                            voice_transcript: repo.dataset.voice || null})
-    }).then(function (r) {
-      if (r.status === 429) {
-        return r.json().then(function (j) {
-          throw new Error("Worker busy. " + (j.retry_hint || "Retry shortly."));
-        });
-      }
-      if (!r.ok) {
-        return r.json().then(function (j) {
-          throw new Error((j.error || "Request failed.") + " " + (j.fix_hint || ""));
-        });
-      }
-      return r.json();
-    }).then(function (j) { poll(j.job_id); })
-      .catch(function (e) { status.textContent = ""; showError(e.message); });
+/* ---------- scenario data ---------- */
+const S={
+blocked:{name:'vibe-notes-broken',url:'https://github.com/demo/vibe-notes-broken',job:'job-7f3a',score:42,verdict:'BLOCKED',
+ blurb:'Leaked key + reachable critical CVE + failed health probe. Rotate the key, bump jinja2, set DATABASE_URL — then run it again.',
+ lines:[
+  {s:'intake',c:'ok',d:300,h:'[00:00.0] intake  ✓ allowlist ok (github.com) · dns guard armed · metadata REJECT'},
+  {s:'intake',c:'ok',d:380,h:'[00:00.3] clone   ✓ depth-1 · 48.2 MB < 50 MB cap · submodules disabled'},
+  {s:'intake',c:'ok',d:380,h:'[00:01.1] parse   ✓ Dockerfile · compose · requirements.txt (37 deps)'},
+  {s:'intake',c:'dim',d:320,h:'[00:01.4] queue   ✓ job-7f3a accepted · worker 1/1'},
+  {s:'secrets',c:'dim',d:420,g:'secrets',gs:'run',h:'[00:02.0] secrets → gitleaks 8.18.4 detect --source /repo --redact --no-banner'},
+  {s:'secrets',c:'err',d:900,g:'secrets',gs:'fail',h:'[00:06.8] secrets ✗ 2 findings · redacted before UI · SARIF written'},
+  {s:'deps',c:'dim',d:420,g:'deps',gs:'run',h:'[00:07.0] deps    → OSV querybatch: 37 pkgs · 1 batched call · cache 29 hits'},
+  {s:'deps',c:'warn',d:760,h:'[00:09.3] deps    ⚠ jinja2@2.4.1 CVSS 9.8 CRITICAL · reachable (template.py:12)'},
+  {s:'deps',c:'warn',d:520,g:'deps',gs:'warn',h:'[00:09.5] deps    ⚠ reqeusts@2.31.0 typosquat · Δlev=1 vs "requests"'},
+  {s:'docs',c:'dim',d:400,g:'docs',gs:'run',h:'[00:10.1] docs    → git diff HEAD~3 vs README endpoints · no LLM'},
+  {s:'docs',c:'warn',d:640,g:'docs',gs:'warn',h:'[00:11.4] docs    ⚠ stale endpoint GET /v1/messages (README.md:31 · offset 412)'},
+  {s:'cost',c:'dim',d:400,g:'cost',gs:'run',h:'[00:11.6] cost    → vultr /v2/instances + /v2/volumes · read-only key'},
+  {s:'cost',c:'warn',d:620,g:'cost',gs:'warn',h:'[00:12.9] cost    ⚠ unattached volume vol-9f2c · $6.00/mo burning'},
+  {s:'build',c:'dim',d:420,g:'build',gs:'run',h:'[00:13.1] build   → docker build · buildkit max-parallelism=1 · 300s kill armed'},
+  {s:'build',c:'ok',d:900,h:'[00:47.2] build   ✓ image baton:job-7f3a built (41s)'},
+  {s:'build',c:'dim',d:420,h:'[00:47.8] build   → run --memory=512m --cpus=0.5 --cap-drop=ALL -u 65534'},
+  {s:'build',c:'err',d:900,g:'build',gs:'fail',h:'[01:02.5] build   ✗ probe GET /healthz timeout (2s) · tail L120-140 captured'},
+  {s:'verdict',c:'err',d:700,g:'verdict',gs:'fail',h:'[01:03.0] verdict ✗ BLOCKED · 42/100 · secret + reachable CVE + build fail'},
+  {s:'verdict',c:'dim',d:500,h:'[01:03.2] summary → vultr inference · redacted prompt · 1.8s · fallback armed'}],
+ ev:{
+  secrets:'<div class="evrow"><span>AKIA****…9F2A</span><span class="mut">README.md:31 · aws-access-key-id</span></div><div class="evrow"><span>ghp_****…3f2c</span><span class="mut">.env.example:8 · github-pat</span></div><p class="note">Potential exposure — not verified active. Redacted before UI; raw value never logged.</p><button class="minibtn" onclick="dlSarif()">⬇ SARIF report</button>',
+  deps:'<div class="evrow"><span><b>jinja2@2.4.1</b></span><span><span class="chipmini red">CVSS 9.8</span> <span class="chipmini red">REACHABLE</span></span></div><div class="fixline">fix → <span class="fx">jinja2&gt;=3.1</span> · reachable via template.py:12</div><div class="evrow"><span><b>reqeusts@2.31.0</b></span><span><span class="chipmini amber">TYPOSQUAT Δlev=1</span></span></div><div class="fixline">fix → <span class="fx">requests</span></div><div class="exa">Exa evidence: <a href="#" onclick="return false">CVE-2024-22195 — jinja2 sandbox escape (GHSA)</a> · <a href="#" onclick="return false">jinja2 3.1.3 release notes — fix commit</a></div>',
+  docs:'<div class="evrow"><span>README.md:<b>31</b> · offset 412</span><span><span class="chipmini amber">STALE</span></span></div><div class="fixline">expected <span class="fx">GET /healthz</span> · found <span class="fx" style="color:var(--red);border-color:var(--red)">GET /v1/messages</span></div><button class="minibtn" onclick="copyText(S.current.patch,\'Fix patch\')">⧉ Copy proposed patch</button>',
+  cost:'<div class="costline">$18.00 → $12.00/mo · <span class="save">save $72/yr</span></div><div class="evrow"><span>unattached volume vol-9f2c</span><span class="mut">$6.00/mo</span></div><div class="evrow"><span>CO₂</span><span class="mut">−4.1 kg/mo</span></div><div class="fixline">cmd → <span class="fx">vultr-cli volume delete --id vol-9f2c</span></div>',
+  build:'<div class="evrow"><span>image built baton:job-7f3a</span><span><span class="chipmini mint">41s</span></span></div><div class="evrow"><span>probe GET /healthz</span><span><span class="chipmini red">TIMEOUT 2s</span></span></div><div class="logtail"><span class="lg">L119  uvicorn running on http://0.0.0.0:80</span>\n<span class="lr">L120  KeyError: \'DATABASE_URL\'</span>\n<span class="lr">L121  Application startup failed</span>\n<span class="lr">L122  probe → timeout after 2000ms</span>\nL…    (tail truncated · secrets redacted like SARIF)</div><p class="note">On a real timeout: pre-recorded DEMO REPLAY logs are served, clearly labeled — never a hang.</p>'},
+ patch:'--- README.md\n+++ README.md\n@@ -31,1 +31,1 @@\n-GET /v1/messages        # stale\n+GET /healthz            # matches app/main.py:58\n\n# also:\n$ git filter-repo --replace-text <(echo "AKIA****9F2A==>REDACTED")  # rotate key first!\n- jinja2==2.4.1\n+ jinja2>=3.1\n+ DATABASE_URL=...   # missing at runtime (build log L120)',
+ report:{job_id:'job-7f3a',status:'done',score:42,verdict:'BLOCKED',demo_mode:true,
+  gates:[
+   {name:'secrets',status:'fail',summary:'2 leaked keys (redacted)',evidence:{found:true,sarif_ref:'/artifacts/job-7f3a.sarif',redactions:2}},
+   {name:'deps',status:'warn',summary:'jinja2@2.4.1 CVSS 9.8 reachable',evidence:{score:18,findings:[{pkg:'jinja2',version:'2.4.1',severity:'Critical',cvss:9.8,reachable:true,typo:false,fix:'jinja2>=3.1'},{pkg:'reqeusts',version:'2.31.0',severity:'Low',cvss:0,reachable:false,typo:true,fix:'requests'}]}},
+   {name:'docs',status:'warn',summary:'1 stale endpoint',evidence:{stale:[{file:'README.md',line:31,offset:412,expected:'GET /healthz',found:'GET /v1/messages'}]}},
+   {name:'cost',status:'warn',summary:'$18.00/mo → $12.00/mo',evidence:{current:18.0,simulated:12.0,saved:6.0,co2_kg:4.1,downgrade_cmd:'vultr-cli volume delete --id vol-9f2c'}},
+   {name:'build',status:'fail',summary:'GET /healthz timeout',evidence:{built:true,healthz:'fail',log_tail:'L120 KeyError: DATABASE_URL … (redacted)'}}],
+  inference_summary:'Blocked by a leaked key and a reachable critical CVE; rotate the key, bump jinja2>=3.1, and set DATABASE_URL before rebuilding.',
+  artifacts:{sarif:'/artifacts/job-7f3a.sarif',log:'/artifacts/job-7f3a.log'}},
+ sarif:{version:'2.1.0','$schema':'https://json.schemastore.org/sarif-2.1.0.json',runs:[{tool:{driver:{name:'gitleaks',version:'8.18.4',informationUri:'https://github.com/gitleaks/gitleaks',rules:[{id:'aws-access-key-id',shortDescription:{text:'AWS Access Key'}},{id:'github-pat',shortDescription:{text:'GitHub Personal Access Token'}}]}},results:[
+  {ruleId:'aws-access-key-id',level:'error',message:{text:'aws access key detected (redacted: AKIA****…9F2A) — potential exposure, not verified active key'},locations:[{physicalLocation:{artifactLocation:{uri:'README.md'},region:{startLine:31,startColumn:9}}}]},
+  {ruleId:'github-pat',level:'error',message:{text:'github pat detected (redacted: ghp_****…3f2c) — potential exposure, not verified active key'},locations:[{physicalLocation:{artifactLocation:{uri:'.env.example'},region:{startLine:8,startColumn:7}}}]}]}]}},
+
+fix:{name:'vibe-notes',url:'https://github.com/demo/vibe-notes',job:'job-a91c',score:64,verdict:'FIX',
+ blurb:'No blockers — but three cheap wins before judges look: an unreachable critical CVE, one stale doc line, and $9/mo of idle spend.',
+ lines:[
+  {s:'intake',c:'ok',d:300,h:'[00:00.0] intake  ✓ allowlist ok · dns guard armed · metadata REJECT'},
+  {s:'intake',c:'ok',d:360,h:'[00:00.3] clone   ✓ depth-1 · 21.7 MB · submodules disabled'},
+  {s:'intake',c:'ok',d:340,h:'[00:01.1] parse   ✓ Dockerfile · requirements.txt (24 deps)'},
+  {s:'intake',c:'dim',d:300,h:'[00:01.4] queue   ✓ job-a91c accepted · worker 1/1'},
+  {s:'secrets',c:'dim',d:400,g:'secrets',gs:'run',h:'[00:02.0] secrets → gitleaks detect --redact --no-banner'},
+  {s:'secrets',c:'ok',d:650,g:'secrets',gs:'pass',h:'[00:05.2] secrets ✓ 0 findings · clean snapshot'},
+  {s:'deps',c:'dim',d:400,g:'deps',gs:'run',h:'[00:05.4] deps    → OSV querybatch: 24 pkgs · 1 batched call'},
+  {s:'deps',c:'warn',d:800,g:'deps',gs:'warn',h:'[00:07.7] deps    ⚠ jinja2@2.4.1 CVSS 9.8 · UNREACHABLE (no import in src/)'},
+  {s:'docs',c:'dim',d:380,g:'docs',gs:'run',h:'[00:08.1] docs    → git diff HEAD~3 vs README endpoints'},
+  {s:'docs',c:'warn',d:620,g:'docs',gs:'warn',h:'[00:09.3] docs    ⚠ stale endpoint GET /v1/messages (README.md:31)'},
+  {s:'cost',c:'dim',d:380,g:'cost',gs:'run',h:'[00:09.5] cost    → vultr /v2/instances · read-only'},
+  {s:'cost',c:'warn',d:620,g:'cost',gs:'warn',h:'[00:10.6] cost    ⚠ plan vc2-4c-8gb oversized → vc2-2c-4gb saves $9.00/mo'},
+  {s:'build',c:'dim',d:380,g:'build',gs:'run',h:'[00:10.8] build   → docker build (throttled buildkit) · 300s kill armed'},
+  {s:'build',c:'ok',d:880,g:'build',gs:'pass',h:'[00:38.4] build   ✓ built · probe GET /healthz → 200 in 341ms'},
+  {s:'verdict',c:'warn',d:640,g:'verdict',gs:'warn',h:'[00:38.9] verdict ⚠ FIX · 64/100 · warnings only, no blockers'},
+  {s:'verdict',c:'dim',d:460,h:'[00:39.1] summary → vultr inference · redacted prompt · ok'}],
+ ev:{
+  secrets:'<div class="evrow"><span>0 findings</span><span><span class="chipmini mint">CLEAN</span></span></div><p class="note">Snapshot scanned with --no-git; empty SARIF still attached for the evidence bundle.</p><button class="minibtn" onclick="dlSarif()">⬇ SARIF report (empty)</button>',
+  deps:'<div class="evrow"><span><b>jinja2@2.4.1</b></span><span><span class="chipmini red">CVSS 9.8</span> <span class="chipmini mint">UNREACHABLE</span></span></div><div class="fixline">fix → <span class="fx">jinja2&gt;=3.1</span> · reachability: no import found in src/</div><p class="note">Unreachable CVEs score lower (0.3× weight) but still warn — one import away from critical.</p>',
+  docs:'<div class="evrow"><span>README.md:<b>31</b> · offset 412</span><span><span class="chipmini amber">STALE</span></span></div><div class="fixline">expected <span class="fx">GET /healthz</span> · found <span class="fx" style="color:var(--red);border-color:var(--red)">GET /v1/messages</span></div><button class="minibtn" onclick="copyText(S.current.patch,\'Fix patch\')">⧉ Copy proposed patch</button>',
+  cost:'<div class="costline">$18.00 → $9.00/mo · <span class="save">save $108/yr</span></div><div class="evrow"><span>plan vc2-4c-8gb → vc2-2c-4gb</span><span class="mut">CPU p95 at 3%</span></div><div class="evrow"><span>CO₂</span><span class="mut">−6.8 kg/mo</span></div><div class="fixline">cmd → <span class="fx">vultr-cli instance update --plan vc2-2c-4gb</span></div>',
+  build:'<div class="evrow"><span>image built · probe GET /healthz</span><span><span class="chipmini mint">200 · 341ms</span></span></div><div class="evrow"><span>sandbox</span><span class="mut">512MB · 0.5 CPU · uid 65534 · caps none</span></div>'},
+ patch:'--- README.md\n+++ README.md\n@@ -31,1 +31,1 @@\n-GET /v1/messages        # stale\n+GET /healthz            # matches app/main.py:58\n\n# cost:\n$ vultr-cli instance update --id i-a91c --plan vc2-2c-4gb   # saves $9.00/mo\n# deps (do it anyway):\n- jinja2==2.4.1\n+ jinja2>=3.1',
+ report:{job_id:'job-a91c',status:'done',score:64,verdict:'FIX',demo_mode:true,
+  gates:[
+   {name:'secrets',status:'pass',summary:'0 findings',evidence:{found:false,redactions:0}},
+   {name:'deps',status:'warn',summary:'jinja2@2.4.1 CVSS 9.8 unreachable',evidence:{score:51,findings:[{pkg:'jinja2',version:'2.4.1',severity:'Critical',cvss:9.8,reachable:false,typo:false,fix:'jinja2>=3.1'}]}},
+   {name:'docs',status:'warn',summary:'1 stale endpoint',evidence:{stale:[{file:'README.md',line:31,offset:412,expected:'GET /healthz',found:'GET /v1/messages'}]}},
+   {name:'cost',status:'warn',summary:'$18.00/mo → $9.00/mo',evidence:{current:18.0,simulated:9.0,saved:9.0,co2_kg:6.8,downgrade_cmd:'vultr-cli instance update --plan vc2-2c-4gb'}},
+   {name:'build',status:'pass',summary:'GET /healthz 200 in 341ms',evidence:{built:true,healthz:'pass',log_tail:'(clean)'}}],
+  inference_summary:'Ship-ready core with three cheap wins: bump jinja2, refresh README line 31, and downsize the plan to save $9/mo.',
+  artifacts:{sarif:'/artifacts/job-a91c.sarif',log:'/artifacts/job-a91c.log'}},
+ sarif:{version:'2.1.0','$schema':'https://json.schemastore.org/sarif-2.1.0.json',runs:[{tool:{driver:{name:'gitleaks',version:'8.18.4'}},results:[]}]}},
+
+ship:{name:'clean-chat-app',url:'https://github.com/demo/clean-chat-app',job:'job-22e0',score:92,verdict:'SHIP',
+ blurb:'All five gates pass — secrets clean, no reachable CVEs, docs current, right-sized, health probe answers in 289ms. Ready to ship on Vultr.',
+ lines:[
+  {s:'intake',c:'ok',d:300,h:'[00:00.0] intake  ✓ allowlist ok · dns guard armed · metadata REJECT'},
+  {s:'intake',c:'ok',d:340,h:'[00:00.3] clone   ✓ depth-1 · 12.4 MB · submodules disabled'},
+  {s:'intake',c:'ok',d:340,h:'[00:01.1] parse   ✓ Dockerfile · compose · requirements.txt (18 deps)'},
+  {s:'intake',c:'dim',d:300,h:'[00:01.4] queue   ✓ job-22e0 accepted · worker 1/1'},
+  {s:'secrets',c:'dim',d:380,g:'secrets',gs:'run',h:'[00:02.0] secrets → gitleaks detect --redact --no-banner'},
+  {s:'secrets',c:'ok',d:600,g:'secrets',gs:'pass',h:'[00:04.9] secrets ✓ 0 findings'},
+  {s:'deps',c:'dim',d:380,g:'deps',gs:'run',h:'[00:05.1] deps    → OSV querybatch: 18 pkgs · 0 critical · 1 low (patched)'},
+  {s:'deps',c:'ok',d:600,g:'deps',gs:'pass',h:'[00:07.3] deps    ✓ worst severity: Low · reachable: none'},
+  {s:'docs',c:'dim',d:380,g:'docs',gs:'run',h:'[00:07.5] docs    → diff vs README · all endpoints documented'},
+  {s:'docs',c:'ok',d:540,g:'docs',gs:'pass',h:'[00:08.0] docs    ✓ 0 stale refs'},
+  {s:'cost',c:'dim',d:380,g:'cost',gs:'run',h:'[00:08.1] cost    → vultr /v2/instances · read-only'},
+  {s:'cost',c:'ok',d:540,g:'cost',gs:'pass',h:'[00:09.1] cost    ✓ $6.00/mo · 0 waste · 0.02 kg CO₂'},
+  {s:'build',c:'dim',d:380,g:'build',gs:'run',h:'[00:09.3] build   → docker build · sandbox · probe /healthz'},
+  {s:'build',c:'ok',d:880,g:'build',gs:'pass',h:'[00:31.7] build   ✓ built · 200 OK in 289ms'},
+  {s:'verdict',c:'ok',d:640,g:'verdict',gs:'ok',h:'[00:32.1] verdict ✓ SHIP · 92/100 · all gates pass'},
+  {s:'verdict',c:'dim',d:460,h:'[00:32.3] summary → vultr inference · "Ready to ship on Vultr."'}],
+ ev:{
+  secrets:'<div class="evrow"><span>0 findings</span><span><span class="chipmini mint">CLEAN</span></span></div><button class="minibtn" onclick="dlSarif()">⬇ SARIF report (empty)</button>',
+  deps:'<div class="evrow"><span>18 pkgs · 0 critical</span><span><span class="chipmini mint">PASS</span></span></div><div class="evrow"><span>requests@2.31.0 (low · patched ≥2.32)</span><span class="mut">unreachable</span></div><p class="note">Typosquat check: all 18 names within safe Levenshtein distance of the top-200.</p>',
+  docs:'<div class="evrow"><span>README endpoints vs app/main.py</span><span><span class="chipmini mint">MATCH</span></span></div><p class="note">Diff-clean: 0 stale refs across README.md, docs/, src/.</p>',
+  cost:'<div class="costline">$6.00 → $6.00/mo · <span class="save">0 waste</span></div><div class="evrow"><span>plan vc2-1c-1gb · CPU p95 41%</span><span><span class="chipmini mint">RIGHT-SIZED</span></span></div>',
+  build:'<div class="evrow"><span>image built · probe GET /healthz</span><span><span class="chipmini mint">200 · 289ms</span></span></div><div class="evrow"><span>sandbox</span><span class="mut">512MB · 0.5 CPU · uid 65534 · caps none</span></div>'},
+ patch:null,
+ report:{job_id:'job-22e0',status:'done',score:92,verdict:'SHIP',demo_mode:true,
+  gates:[
+   {name:'secrets',status:'pass',summary:'0 findings',evidence:{found:false,redactions:0}},
+   {name:'deps',status:'pass',summary:'0 critical · 1 low unreachable',evidence:{score:95,findings:[]}},
+   {name:'docs',status:'pass',summary:'0 stale refs',evidence:{stale:[]}},
+   {name:'cost',status:'pass',summary:'$6.00/mo, right-sized',evidence:{current:6.0,simulated:6.0,saved:0.0,co2_kg:0.02}},
+   {name:'build',status:'pass',summary:'GET /healthz 200 in 289ms',evidence:{built:true,healthz:'pass',log_tail:'(clean)'}}],
+  inference_summary:'Ready to ship on Vultr: all five gates pass and the health probe answers in under 300ms.',
+  artifacts:{sarif:'/artifacts/job-22e0.sarif',log:'/artifacts/job-22e0.log'}},
+ sarif:{version:'2.1.0','$schema':'https://json.schemastore.org/sarif-2.1.0.json',runs:[{tool:{driver:{name:'gitleaks',version:'8.18.4'}},results:[]}]}},
+};
+S.current=S.blocked;
+
+/* ---------- gauge ---------- */
+const GV={cx:110,cy:110,ang:v=>135+v*2.7};
+function pol(r,a){return [GV.cx+r*Math.cos(a*Math.PI/180),GV.cy+r*Math.sin(a*Math.PI/180)]}
+function arcPath(r,a0,a1){const[x0,y0]=pol(r,a0),[x1,y1]=pol(r,a1);const la=(a1-a0)>180?1:0;return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${la} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`}
+(function buildGauge(){
+  const NS='http://www.w3.org/2000/svg';
+  const track=$('#gTrack');
+  const tr=document.createElementNS(NS,'path');
+  tr.setAttribute('d',arcPath(103,GV.ang(0),GV.ang(100)));
+  tr.setAttribute('fill','none');tr.setAttribute('stroke','rgba(23,19,16,.12)');tr.setAttribute('stroke-width','7');
+  track.appendChild(tr);
+  const zones=[[0,39,'#C22B1D'],[40,69,'#C77E12'],[70,100,'#1B7F4B']];
+  const zg=$('#gZones');
+  zones.forEach(([a,b,col])=>{const p=document.createElementNS(NS,'path');
+    p.setAttribute('d',arcPath(103,GV.ang(a),GV.ang(b)));
+    p.setAttribute('fill','none');p.setAttribute('stroke',col);p.setAttribute('stroke-width','7');p.setAttribute('opacity','.85');
+    zg.appendChild(p)});
+  const tk=$('#gTicks');
+  for(let v=0;v<=100;v+=5){
+    const major=v%10===0, a=GV.ang(v);
+    const [x0,y0]=pol(88,a),[x1,y1]=pol(major?76:82,a);
+    const l=document.createElementNS(NS,'line');
+    l.setAttribute('x1',x0);l.setAttribute('y1',y0);l.setAttribute('x2',x1);l.setAttribute('y2',y1);
+    l.setAttribute('stroke',major?'#171310':'rgba(23,19,16,.4)');l.setAttribute('stroke-width',major?'2.4':'1.2');
+    tk.appendChild(l);
+  }
+  const nums=$('#gNums');
+  [0,20,40,60,80,100].forEach(v=>{
+    const a=GV.ang(v),[x,y]=pol(64,a);
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',x);t.setAttribute('y',y);
+    t.setAttribute('text-anchor','middle');t.setAttribute('dominant-baseline','middle');
+    t.setAttribute('style','font:600 10px "IBM Plex Mono",monospace;fill:rgba(23,19,16,.55)');
+    t.textContent=v;nums.appendChild(t);
   });
-
-  function poll(id) {
-    if (timer) clearInterval(timer);
-    timer = setInterval(function () {
-      fetch("/api/jobs/" + encodeURIComponent(id)).then(function (r) { return r.json(); })
-        .then(function (j) {
-          if (j.status === "done") { clearInterval(timer); status.textContent = ""; render(j); }
-          else { status.textContent = "Status: " + (j.status || "working") + "…"; }
-        })
-        .catch(function () { status.textContent = "Waiting for worker…"; });
-    }, 800);
-  }
-
-  function esc(s) {
-    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
-      return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c];
-    });
-  }
-
-  function render(j) {
-    report.hidden = false;
-    var score = (typeof j.score === "number") ? j.score : 0;
-    document.getElementById("score-num").textContent = score;
-    var circ = 2 * Math.PI * 52;
-    var arc = document.getElementById("arc");
-    arc.setAttribute("stroke-dasharray", (circ * score / 100) + " " + circ);
-    arc.setAttribute("stroke", score >= 80 ? "#34c77b" : (score >= 50 ? "#e5a13d" : "#e5534b"));
-    var v = document.getElementById("verdict");
-    v.textContent = j.verdict || "–";
-    v.className = "pill " + (j.verdict || "");
-    document.getElementById("summary").textContent = j.inference_summary || "";
-
-    var cards = document.getElementById("cards");
-    cards.innerHTML = "";
-    (j.gates || []).forEach(function (g) {
-      var d = document.createElement("div");
-      d.className = "card";
-      d.innerHTML = "<h3><span class='dot " + esc(g.status) + "'></span>" + esc(g.name) + "</h3>" +
-        "<div class='sum'>" + esc(g.summary) + "</div>";
-      cards.appendChild(d);
-    });
-
-    var hasExa = j.exa_links && j.exa_links.length;
-    var hasVoice = !!j.voice_transcript;
-    document.getElementById("extras").hidden = !(hasExa || hasVoice);
-    document.getElementById("exa-card").hidden = !hasExa;
-    document.getElementById("voice-card").hidden = !hasVoice;
-    if (hasExa) {
-      document.getElementById("exa-links").innerHTML = j.exa_links.map(function (l) {
-        return "<div><a href='" + esc(l.url) + "' target='_blank' rel='noopener'>" +
-          esc(l.title || l.url) + "</a></div>";
-      }).join("");
-    }
-    if (hasVoice) document.getElementById("voice-text").textContent = j.voice_transcript;
-
-    var cost = (j.gates || []).filter(function (g) { return g.name === "cost"; })[0];
-    var cev = (cost && cost.evidence) || {};
-    if (cev.current != null) {
-      document.getElementById("cost-card").hidden = false;
-      document.getElementById("cost-text").textContent =
-        "$" + cev.current + "/mo now → $" + cev.simulated + "/mo sim, saved $" +
-        cev.saved + "/mo, CO2 " + (cev.co2_kg != null ? cev.co2_kg : cev.co2) + " kg. " +
-        (cev.downgrade_cmd || "");
-    } else { document.getElementById("cost-card").hidden = true; }
-
-    var docs = (j.gates || []).filter(function (g) { return g.name === "docs"; })[0];
-    var stale = ((docs && docs.evidence) || {}).stale || [];
-    var drift = document.getElementById("drift");
-    drift.innerHTML = "";
-    stale.forEach(function (s) {
-      var li = document.createElement("li");
-      li.textContent = s.file + ":" + s.line + " expected " + s.expected +
-        " found " + s.found + " — " + (s.proposed_patch || s.proposed || "");
-      drift.appendChild(li);
-    });
-    if (!stale.length) drift.innerHTML = "<li>no drift</li>";
-
-    var build = (j.gates || []).filter(function (g) { return g.name === "build"; })[0];
-    var tail = ((build && build.evidence) || {}).log_tail || "";
-    document.getElementById("logtail").textContent = tail.split("\n").slice(-200).join("\n");
-
-    document.getElementById("sarif-dl").href = (j.artifacts && j.artifacts.sarif) || "#";
-    document.getElementById("copy-fix").onclick = function () {
-      var txt = stale.map(function (s) { return s.proposed_patch || s.proposed || ""; }).join("\n");
-      if (navigator.clipboard) navigator.clipboard.writeText(txt || "");
-    };
-    document.getElementById("rebuild").onclick = function () {
-      repo.value = lastUrl; document.getElementById("analyze").click();
-    };
-  }
-
-  // Mic: record -> webm -> 16kHz mono wav base64 -> POST /api/voice.
-  // Any failure falls back to typed text (voice never blocks).
-  var mic = document.getElementById("mic");
-  mic.addEventListener("click", function () {
-    if (!navigator.mediaDevices || !window.MediaRecorder) {
-      showError("Voice not supported here — type the repo URL instead.");
-      return;
-    }
-    mic.disabled = true;
-    navigator.mediaDevices.getUserMedia({audio: true}).then(function (stream) {
-      var rec = new MediaRecorder(stream);
-      var chunks = [];
-      rec.ondataavailable = function (e) { chunks.push(e.data); };
-      rec.onstop = function () {
-        stream.getTracks().forEach(function (t) { t.stop(); });
-        mic.disabled = false;
-        var blob = new Blob(chunks, {type: rec.mimeType || "audio/webm"});
-        blob.arrayBuffer().then(function (buf) {
-          var AC = window.AudioContext || window.webkitAudioContext;
-          if (!AC) { showError("Voice decode unavailable — type the URL instead."); return; }
-          new AC().decodeAudioData(buf).then(function (audio) {
-            var rate = 16000;
-            var src = audio.getChannelData(0);
-            var n = Math.floor(src.length * rate / audio.sampleRate);
-            var pcm = new Int16Array(n);
-            for (var i = 0; i < n; i++) {
-              var s = src[Math.floor(i * audio.sampleRate / rate)] || 0;
-              pcm[i] = Math.max(-32768, Math.min(32767, Math.round(s * 32767)));
-            }
-            var hdr = new ArrayBuffer(44);
-            var dv = new DataView(hdr);
-            function wstr(o, t) { for (var k = 0; k < t.length; k++) dv.setUint8(o + k, t.charCodeAt(k)); }
-            wstr(0, "RIFF"); dv.setUint32(4, 36 + n * 2, true); wstr(8, "WAVE");
-            wstr(12, "fmt "); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
-            dv.setUint32(24, rate, true); dv.setUint32(28, rate * 2, true);
-            dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
-            wstr(36, "data"); dv.setUint32(40, n * 2, true);
-            var bytes = new Uint8Array(44 + n * 2);
-            bytes.set(new Uint8Array(hdr), 0);
-            for (var m = 0; m < n; m++) {
-              bytes[44 + m * 2] = pcm[m] & 255;
-              bytes[44 + m * 2 + 1] = (pcm[m] >> 8) & 255;
-            }
-            var bin = "";
-            var CH = 8192;
-            for (var o = 0; o < bytes.length; o += CH) {
-              bin += String.fromCharCode.apply(null, bytes.subarray(o, o + CH));
-            }
-            fetch("/api/voice", {
-              method: "POST", headers: {"Content-Type": "application/json"},
-              body: JSON.stringify({audio_b64: btoa(bin)})
-            }).then(function (r) { return r.json(); }).then(function (j2) {
-              if (j2.transcript) { repo.value = j2.transcript; repo.dataset.voice = j2.transcript; }
-              else showError("No transcript — type the repo URL instead.");
-            }).catch(function () { showError("Voice unavailable — type the repo URL instead."); });
-          }).catch(function () { showError("Voice decode failed — type the URL instead."); });
-        });
-      };
-      rec.start();
-      setTimeout(function () { if (rec.state !== "inactive") rec.stop(); }, 8000);
-    }).catch(function () {
-      mic.disabled = false;
-      showError("Mic blocked — type the repo URL instead.");
-    });
-  });
+  const nd=$('#needle');
+  nd.style.transform=`rotate(${GV.ang(0)}deg)`;
 })();
+function setScore(score,verdict){
+  $('#needle').style.transform=`rotate(${GV.ang(score)}deg)`;
+  const num=$('#scoreNum');
+  const t0=performance.now(),dur=1400;
+  num.style.color=VTX[verdict];
+  (function step(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);
+    num.textContent=Math.round(score*e);if(p<1)requestAnimationFrame(step)})(t0);
+  const z=$('#zoneTxt');z.textContent='ZONE · '+verdict;z.style.color=VTX[verdict];
+}
+function resetGauge(){
+  $('#needle').style.transform=`rotate(${GV.ang(0)}deg)`;
+  const num=$('#scoreNum');num.textContent='—';num.style.color='';
+  const z=$('#zoneTxt');z.textContent='awaiting input';z.style.color='';
+  $('#gJob').textContent='JOB · —';
+}
+
+/* ---------- stage strip / gate rows ---------- */
+const SMAP={ok:'ok',warn:'warn',err:'fail',dim:'run'};
+function setStage(stage,cls){const c=$(`.pstep[data-stage="${stage}"]`);if(c)c.className='pstep '+(SMAP[cls]||'')}
+function resetStages(){$$('.pstep').forEach(c=>c.className='pstep')}
+function setGate(g,state){
+  const el=$(`.mgate[data-g="${g}"]`);if(!el)return;
+  el.classList.remove('run','pass','warn','fail');
+  el.classList.add(state);
+  el.querySelector('.ms').textContent=state==='run'?'running':state;
+  if(state!=='run'&&S.current&&S.current.ev[g]){
+    el.querySelector('.ginner').innerHTML=S.current.ev[g];
+    if(state!=='pass')el.classList.add('open');
+  }
+}
+function setGateHTML(g,state,html){
+  const el=$(`.mgate[data-g="${g}"]`);if(!el)return;
+  el.classList.remove('run','pass','warn','fail');
+  el.classList.add(state);
+  el.querySelector('.ms').textContent=state;
+  if(html!=null)el.querySelector('.ginner').innerHTML=html;
+  if(state==='warn'||state==='fail')el.classList.add('open');
+}
+function setBadge(txt){
+  const b=document.querySelector('.badge');
+  if(b)b.innerHTML='<i></i>'+esc(txt);
+}
+function resetGates(){
+  $$('.mgate').forEach(el=>{el.classList.remove('run','pass','warn','fail','open');
+    el.querySelector('.ms').textContent='idle';el.querySelector('.ginner').innerHTML='';});
+}
+function toggleGate(el){el.classList.toggle('open')}
+$$('.gxh').forEach(b=>b.addEventListener('click',()=>b.parentElement.classList.toggle('open')));
+
+/* ---------- terminal ---------- */
+function lineEl(html,cls){
+  const d=document.createElement('div');
+  d.className='tline '+(cls||'');
+  d.innerHTML=html.replace(/\[(\d\d:\d\d\.\d)\]/,'<span class="tm">[$1]</span>');
+  $('#termBody').appendChild(d);
+  $('#termBody').scrollTop=$('#termBody').scrollHeight;
+}
+async function typeCmd(cmd){
+  const d=document.createElement('div');d.className='tline cmd';
+  d.innerHTML='<span class="pr">$ </span><span class="ctxt"></span><span class="cursor"></span>';
+  $('#termBody').appendChild(d);
+  const span=d.querySelector('.ctxt');
+  for(const ch of cmd){span.textContent+=ch;await wait(12)}
+  d.querySelector('.cursor').remove();
+  await wait(280);
+}
+async function typeInto(input,txt){input.value='';for(const ch of txt){input.value+=ch;await wait(22)}}
+function countUp(el,to,dur=1300){const t0=performance.now();
+  (function step(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);
+    el.textContent=Math.round(to*e);if(p<1)requestAnimationFrame(step)})(t0)}
+
+/* ---------- report / downloads ---------- */
+function showReport(){
+  const rep=(usingLive&&liveReport)?liveReport:S.current.report;
+  const json=JSON.stringify(rep,null,2);
+  $('#reportPre').innerHTML=esc(json)
+    .replace(/&quot;([^&]+)&quot;:/g,'<span class="k">"$1"</span>:')
+    .replace(/: (\d+\.?\d*)/g,': <span class="n">$1</span>');
+  $('#reportWrap').classList.toggle('show');
+}
+function dlSarif(){
+  if(usingLive&&liveSarifPath){
+    fetch(liveSarifPath).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.blob()}).then(blob=>{
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=String(liveSarifPath).split('/').pop()||'report.sarif';a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      toast('ok','SARIF saved',a.download+' — live backend artifact');
+    }).catch(e=>toast('info','SARIF fetch failed',String((e&&e.message)||e)+' — redacted SARIF unavailable.'));
+    return;
+  }
+  const blob=new Blob([JSON.stringify(S.current.sarif,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=S.current.job+'.sarif';a.click();
+  URL.revokeObjectURL(a.href);
+  toast('ok','SARIF saved',a.download+' — valid SARIF 2.1.0, secrets redacted');
+}
+
+/* ---------- live backend (same-origin /api/*) ---------- */
+function evText(v){return esc(String(v==null?'':v))}
+function renderLiveEvidence(name,g,exalinks){
+  const ev=(g&&g.evidence)||{};
+  const st=g?(g.status||'warn'):'warn';
+  const chip=st==='pass'?'mint':st==='fail'?'red':'amber';
+  const head='<div class="evrow"><span>'+evText(g?(g.summary||name):name)+'</span><span><span class="chipmini '+chip+'">'+evText(st).toUpperCase()+'</span></span></div>';
+  if(name==='secrets'){
+    return head
+      +'<div class="evrow"><span>redactions</span><span class="mut">'+evText(ev.redactions||0)+'</span></div>'
+      +(ev.sarif_ref?'<div class="evrow"><span>sarif</span><span class="mut">'+evText(ev.sarif_ref)+'</span></div>':'')
+      +'<p class="note">'+evText(ev.note||'Potential exposure — not verified active. Redacted before UI; raw value never logged.')+'</p>'
+      +'<button class="minibtn" onclick="dlSarif()">⬇ SARIF report</button>';
+  }
+  if(name==='deps'){
+    const fs=Array.isArray(ev.findings)?ev.findings:[];
+    let h=head;
+    if(!fs.length)h+='<div class="evrow"><span>0 findings</span><span><span class="chipmini mint">PASS</span></span></div>';
+    fs.slice(0,6).forEach(f=>{
+      const tags=[];
+      if(f.cvss!=null)tags.push('<span class="chipmini red">CVSS '+evText(f.cvss)+'</span>');
+      else if(f.severity)tags.push('<span class="chipmini amber">'+evText(f.severity).toUpperCase()+'</span>');
+      if(f.reachable)tags.push('<span class="chipmini red">REACHABLE</span>');
+      if(f.typo)tags.push('<span class="chipmini amber">TYPOSQUAT</span>');
+      h+='<div class="evrow"><span><b>'+evText(f.pkg||f.id||'pkg')+(f.version?'@'+evText(f.version):'')+'</b></span><span>'+tags.join(' ')+'</span></div>';
+      if(f.fix)h+='<div class="fixline">fix → <span class="fx">'+evText(f.fix)+'</span></div>';
+    });
+    if(Array.isArray(exalinks)&&exalinks.length){
+      h+='<div class="exa">Exa evidence: '+exalinks.slice(0,2).map(l=>'<a href="'+evText(l.url)+'" target="_blank" rel="noopener">'+evText(l.title||l.url)+'</a>').join(' · ')+'</div>';
+    }
+    return h;
+  }
+  if(name==='docs'){
+    if(ev.refused)return head+'<p class="note">'+evText(ev.reason||'refused: no evidence')+'</p>';
+    const stale=Array.isArray(ev.stale)?ev.stale:[];
+    let h=head;
+    if(!stale.length)h+='<div class="evrow"><span>0 stale refs</span><span><span class="chipmini mint">MATCH</span></span></div>';
+    stale.slice(0,6).forEach(s=>{
+      h+='<div class="evrow"><span>'+evText(s.file)+':<b>'+evText(s.line)+'</b></span><span><span class="chipmini amber">STALE</span></span></div>'
+        +'<div class="fixline">expected <span class="fx">'+evText(s.expected)+'</span> · found <span class="fx" style="color:var(--red);border-color:var(--red)">'+evText(s.found)+'</span></div>';
+    });
+    if(stale.length)h+='<button class="minibtn" onclick="copyText(window.__livePatch||\'\',\'Fix patch\')">⧉ Copy proposed patch</button>';
+    return h;
+  }
+  if(name==='cost'){
+    const co2=ev.co2_kg!=null?ev.co2_kg:ev.co2;
+    let h='<div class="costline">$'+evText(ev.current)+' → $'+evText(ev.simulated)+'/mo · <span class="save">save $'+evText(ev.saved)+'/mo</span></div>';
+    if(co2!=null)h+='<div class="evrow"><span>CO₂</span><span class="mut">−'+evText(co2)+' kg/mo</span></div>';
+    if(ev.downgrade_cmd)h+='<div class="fixline">cmd → <span class="fx">'+evText(ev.downgrade_cmd)+'</span></div>';
+    return h;
+  }
+  if(name==='build'){
+    let h=head;
+    if(ev.skipped)h+='<p class="note">Build deferred on this host — DEMO REPLAY style tail shown.</p>';
+    const tail=String(ev.log_tail||'').split('\n').slice(-40).join('\n');
+    if(tail)h+='<div class="logtail">'+evText(tail)+'</div>';
+    return h;
+  }
+  return head+'<div class="evrow"><span>evidence</span><span class="mut">'+evText(JSON.stringify(ev)).slice(0,200)+'</span></div>';
+}
+function buildLivePatch(job){
+  const out=[];
+  (job.gates||[]).forEach(g=>{
+    const ev=(g&&g.evidence)||{};
+    if(g&&g.name==='docs'&&Array.isArray(ev.stale))ev.stale.forEach(s=>{if(s.proposed_patch)out.push(s.proposed_patch)});
+    if(g&&g.name==='deps'&&Array.isArray(ev.findings))ev.findings.forEach(f=>{if(f.fix)out.push('# '+(f.pkg||f.id||'pkg')+': '+f.fix)});
+    if(g&&g.name==='cost'&&ev.downgrade_cmd)out.push('$ '+ev.downgrade_cmd);
+  });
+  return out.length?out.join('\n'):'';
+}
+async function runLive(url){
+  running=true;usingLive=false;liveReport=null;liveSarifPath=null;window.__livePatch='';
+  $('#analyzeBtn').classList.add('disabled');
+  const fail=(title,msg)=>{running=false;$('#analyzeBtn').classList.remove('disabled');toast('info',title,msg+' — playing DEMO REPLAY.');return false;};
+  let r;
+  try{
+    r=await fetch('/api/gate',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({repo_url:url,voice_transcript:voiceTranscript})});
+  }catch(e){return fail('Live backend unreachable','fetch failed ('+((e&&e.message)||'network error')+')');}
+  if(r.status===400){
+    let j={};try{j=await r.json()}catch(_){}
+    running=false;$('#analyzeBtn').classList.remove('disabled');
+    toast('err400','400 — Intake rejected',((j&&j.error)||'Bad request')+((j&&j.fix_hint)?' '+j.fix_hint:'')+' Samples below still work.');
+    return true;
+  }
+  if(r.status===429){
+    let j={};try{j=await r.json()}catch(_){}
+    running=false;$('#analyzeBtn').classList.remove('disabled');
+    toast('err429','429 — Queue full',((j&&j.retry_hint)||(j&&j.error)||'Worker busy.')+' Try again in a few seconds.');
+    return true;
+  }
+  if(r.status!==202){let t='';try{t=await r.text()}catch(_){}return fail('Backend returned '+r.status,(t||'Unexpected response').slice(0,200));}
+  let j0=null;
+  try{j0=await r.json()}catch(e){return fail('Bad gateway response','Unparseable 202 body');}
+  if(!j0||!j0.job_id)return fail('No job id','Gateway gave no job');
+  return await pollLive(j0.job_id,url);
+}
+async function pollLive(jobId,url){
+  ['sarifBtn','patchBtn','jsonBtn'].forEach(id=>$('#'+id).classList.add('disabled'));
+  $('#reportWrap').classList.remove('show');
+  $('#termTitle').textContent=jobId+' · queued · live backend';
+  $('#termBody').innerHTML='';resetStages();resetGates();resetGauge();
+  setBadge('live · backend');
+  await typeCmd('batongate analyze '+url+' --json');
+  lineEl('[live] POST /api/gate → 202 · job '+jobId+' · polling every 1.5s','dim');
+  setStage('intake','dim');
+  const t0=Date.now();
+  for(let i=0;i<60;i++){
+    await new Promise(res=>setTimeout(res,1500));
+    let job=null;
+    try{
+      const pr=await fetch('/api/jobs/'+encodeURIComponent(jobId));
+      if(!pr.ok)throw new Error('HTTP '+pr.status);
+      job=await pr.json();
+    }catch(e){
+      running=false;$('#analyzeBtn').classList.remove('disabled');
+      toast('info','Live poll failed',String((e&&e.message)||e)+' — playing DEMO REPLAY.');
+      return false;
+    }
+    const st=(job&&(job.status||'queued'));
+    $('#termTitle').textContent=jobId+' · '+st+' · '+Math.round((Date.now()-t0)/1000)+'s';
+    if(st==='done'){renderLive(jobId,job);return true;}
+  }
+  running=false;$('#analyzeBtn').classList.remove('disabled');
+  toast('info','Live run timed out','No verdict after ~90s — playing DEMO REPLAY.');
+  return false;
+}
+function renderLive(jobId,job){
+  usingLive=true;
+  const gates=Array.isArray(job.gates)?job.gates:[];
+  const verdict=job.verdict||'FIX';
+  const score=(typeof job.score==='number')?job.score:0;
+  const byName={};gates.forEach(g=>{if(g&&g.name)byName[g.name]=g});
+  liveReport=job;
+  liveSarifPath=job.sarif_path||(job.artifacts&&job.artifacts.sarif)||null;
+  const stCls=s=>s==='pass'?'ok':s==='fail'?'err':'warn';
+  ['secrets','deps','docs','cost','build'].forEach(n=>{
+    const g=byName[n]||{name:n,status:'warn',summary:'no data',evidence:{}};
+    const cls=stCls(g.status);
+    lineEl('[live] '+n+' → '+g.status+' · '+(g.summary||''),cls);
+    setStage(n,cls);
+    setGateHTML(n,g.status||'warn',renderLiveEvidence(n,g,job.exa_links));
+  });
+  const vc=verdict==='SHIP'?'ok':verdict==='BLOCKED'?'err':'warn';
+  lineEl('[live] verdict '+verdict+' · '+score+'/100',vc);
+  setStage('verdict',vc);
+  if(job.inference_summary)lineEl('[live] summary → '+job.inference_summary,'dim');
+  if(job.voice_transcript){$('#voiceChip').innerHTML='🎤 transcript via <b>WISPR FLOW</b> · '+esc(job.voice_transcript);$('#voiceChip').classList.add('show');}
+  $('#termTitle').textContent=jobId+' · done · live backend';
+  $('#gJob').textContent='JOB · '+jobId;
+  setBadge(job.demo_mode?'demo mode · live backend':'live · backend');
+  setScore(score,verdict);
+  const st=$('#stamp');
+  st.textContent=verdict;
+  st.className='stamp '+verdict.toLowerCase();
+  void st.offsetWidth;
+  st.classList.add('show');
+  const bl=$('#verdictBlurb');bl.textContent=job.inference_summary||('Verdict '+verdict+' · '+score+'/100');bl.classList.remove('show');void bl.offsetWidth;bl.classList.add('show');
+  $('#sarifBtn').classList.remove('disabled');
+  $('#jsonBtn').classList.remove('disabled');
+  const patch=buildLivePatch(job);
+  window.__livePatch=patch||'';
+  if(patch)$('#patchBtn').classList.remove('disabled');
+  running=false;
+  $('#analyzeBtn').classList.remove('disabled');
+}
+
+/* ---------- main run ---------- */
+function pickScenario(url){
+  if(/clean-chat-app/.test(url))return 'ship';
+  if(/vibe-notes-broken/.test(url))return 'blocked';
+  if(/vibe-notes/.test(url))return 'fix';
+  const h=[...url].reduce((a,c)=>a+c.charCodeAt(0),0);
+  return ['fix','blocked','ship'][h%3];
+}
+async function runDemo(scnKey,customUrl){
+  const url=customUrl||S[scnKey].url;
+  if(running){
+    toast('err429','429 — Queue full','maxsize=1: one worker, one 2GB VM. Retry in a few seconds.');
+    return;
+  }
+  try{
+    if(await runLive(url))return;
+  }catch(e){
+    toast('info','Live backend unreachable',String((e&&e.message)||e)+' — playing DEMO REPLAY.');
+  }
+  await simRun(pickScenario(url),url,true);
+}
+async function simRun(scnKey,customUrl,replay){
+  if(running){
+    toast('err429','429 — Queue full','maxsize=1: one worker, one 2GB VM. Retry in a few seconds.');
+    return;
+  }
+  const url=customUrl||S[scnKey].url;
+  if(!/^https:\/\/(github\.com|gitlab\.com)\//.test(url)){
+    toast('err400','400 — Intake rejected','Host not allowlisted. Use https://github.com/… or https://gitlab.com/… — or run a sample below.');
+    return;
+  }
+  running=true;usingLive=false;current=scnKey;S.current=S[scnKey];
+  const sc=S[scnKey];
+  $('#analyzeBtn').classList.add('disabled');
+  ['sarifBtn','patchBtn','jsonBtn'].forEach(id=>$('#'+id).classList.add('disabled'));
+  $('#reportWrap').classList.remove('show');
+  $('#termTitle').textContent=sc.job+' · queued · worker 1/1';
+  $('#termBody').innerHTML='';resetStages();resetGates();resetGauge();
+  setBadge(replay?'demo replay · simulated':'demo mode · simulated');
+  await typeCmd('batongate analyze '+url+' --json');
+  if(replay)lineEl('[replay] DEMO REPLAY · simulated pipeline, no clone','dim');
+  for(const ln of sc.lines){
+    await wait(ln.d||480);
+    lineEl(ln.h,ln.c);
+    if(ln.s)setStage(ln.s,ln.c);
+    if(ln.g)setGate(ln.g,ln.gs);
+  }
+  $('#termTitle').textContent=sc.job+' · done · verdict '+sc.verdict;
+  $('#gJob').textContent='JOB · '+sc.job;
+  await wait(420);
+  setScore(sc.score,sc.verdict);
+  const st=$('#stamp');
+  st.textContent=sc.verdict;
+  st.className='stamp '+sc.verdict.toLowerCase();
+  void st.offsetWidth;
+  st.classList.add('show');
+  const bl=$('#verdictBlurb');bl.textContent=sc.blurb;bl.classList.remove('show');void bl.offsetWidth;bl.classList.add('show');
+  $('#sarifBtn').classList.remove('disabled');
+  $('#jsonBtn').classList.remove('disabled');
+  if(sc.patch)$('#patchBtn').classList.remove('disabled');
+  running=false;
+  $('#analyzeBtn').classList.remove('disabled');
+}
+
+/* ---------- wiring ---------- */
+ $('#analyzeBtn').addEventListener('click',()=>{
+  const v=$('#repoInput').value.trim();
+  if(!v){toast('err400','400 — Empty input','Paste a repo URL or click a sample.');return}
+  runDemo(pickScenario(v),v);
+});
+ $('#repoInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('#analyzeBtn').click()});
+document.addEventListener('keydown',e=>{
+  if(e.key==='/'&&document.activeElement!==$('#repoInput')){e.preventDefault();$('#repoInput').focus()}
+  if(e.key==='Escape')$('#reportWrap').classList.remove('show');
+});
+$$('.samp').forEach(b=>b.addEventListener('click',()=>{
+  const k=b.dataset.scn;$('#repoInput').value=S[k].url;runDemo(k);
+}));
+ $('#jsonBtn').addEventListener('click',showReport);
+ $('#rfClose').addEventListener('click',()=>$('#reportWrap').classList.remove('show'));
+ $('#patchBtn').addEventListener('click',()=>copyText(usingLive?(window.__livePatch||'(no patch available)'):S.current.patch,'Fix patch'));
+ $('#sarifBtn').addEventListener('click',dlSarif);
+ $('#speedBtn').addEventListener('click',()=>{
+  SPEED=SPEED===1?2:SPEED===2?4:1;
+  $('#speedBtn').textContent='SPEED '+SPEED+'×';
+});
+ $('#micBtn').addEventListener('click',()=>{
+  const b=$('#micBtn');
+  if(b.classList.contains('rec'))return;
+  b.classList.add('rec');
+  const fallback=async()=>{
+    b.classList.remove('rec');
+    $('#voiceChip').classList.add('show');
+    await typeInto($('#repoInput'),'https://github.com/demo/vibe-notes-broken');
+    toast('ok','Transcript ready','Simulated voice input. Text input always works.');
+  };
+  (async()=>{
+    try{
+      if(!navigator.mediaDevices||!window.MediaRecorder)throw new Error('no recorder');
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const rec=new MediaRecorder(stream);
+      const chunks=[];
+      rec.ondataavailable=e=>{chunks.push(e.data)};
+      const stopped=new Promise(res=>{rec.onstop=()=>res()});
+      rec.start();
+      setTimeout(()=>{if(rec.state!=='inactive')rec.stop()},4000);
+      await stopped;
+      stream.getTracks().forEach(t=>{t.stop()});
+      const blob=new Blob(chunks,{type:rec.mimeType||'audio/webm'});
+      const buf=await blob.arrayBuffer();
+      const AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC)throw new Error('no decoder');
+      const audio=await new AC().decodeAudioData(buf.slice(0));
+      const rate=16000, src=audio.getChannelData(0);
+      const n=Math.floor(src.length*rate/audio.sampleRate);
+      const bytes=new Uint8Array(44+n*2);
+      const dv=new DataView(bytes.buffer);
+      const wstr=(o,t)=>{for(let k=0;k<t.length;k++)dv.setUint8(o+k,t.charCodeAt(k))};
+      wstr(0,'RIFF');dv.setUint32(4,36+n*2,true);wstr(8,'WAVE');wstr(12,'fmt ');
+      dv.setUint16(20,1,true);dv.setUint16(22,1,true);dv.setUint32(24,rate,true);
+      dv.setUint32(28,rate*2,true);dv.setUint16(32,2,true);dv.setUint16(34,16,true);
+      wstr(36,'data');dv.setUint32(40,n*2,true);
+      for(let i=0;i<n;i++){const s2=src[Math.floor(i*audio.sampleRate/rate)]||0;const vv=Math.max(-32768,Math.min(32767,Math.round(s2*32767)));bytes[44+i*2]=vv&255;bytes[44+i*2+1]=(vv>>8)&255;}
+      let bin='';const CH=8192;
+      for(let o=0;o<bytes.length;o+=CH)bin+=String.fromCharCode.apply(null,bytes.subarray(o,o+CH));
+      const vr=await fetch('/api/voice',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({audio_b64:btoa(bin)})});
+      if(!vr.ok)throw new Error('HTTP '+vr.status);
+      const vj=await vr.json();
+      if(!vj||!vj.transcript)throw new Error('no transcript');
+      b.classList.remove('rec');
+      voiceTranscript=vj.transcript;
+      $('#repoInput').value=vj.transcript;
+      $('#voiceChip').innerHTML='mic transcript via <b>WISPR FLOW</b> · '+esc(vj.transcript);
+      $('#voiceChip').classList.add('show');
+      toast('ok','Transcript ready','Voice input captured. Text input always works.');
+    }catch(e){await fallback();}
+  })();
+ });
+
+/* ---------- ticker duplicate ---------- */
+const tk=$('#tk');if(tk)tk.innerHTML+=tk.innerHTML;
+
+/* ---------- hero loop terminal ---------- */
+const LOOP=[
+  {c:'cmd',h:'<span class="pr">$ </span>batongate analyze github.com/you/vibe-app'},
+  {c:'ok',h:'[00:00] intake ✓ · clone 24.1 MB · 37 deps parsed'},
+  {c:'warn',h:'[00:07] secrets ✓ clean · deps ⚠ CVSS 9.8'},
+  {c:'warn',h:'[00:11] docs ⚠ stale · cost ✓ $6/mo · build ✓ 200'},
+  {c:'verdict',h:'[00:32] verdict: <span class="v-f">FIX · 64/100</span>'},
+  {c:'ok',h:'fix: jinja2>=3.1 · README:31 · downsize plan'}
+];
+(async function heroLoop(){
+  const el=$('#loopTerm');
+  if(reduced){LOOP.forEach(l=>{const d=document.createElement('div');d.className='tline '+l.c;d.innerHTML=l.h;el.appendChild(d)});return}
+  while(true){
+    el.innerHTML='';
+    for(const l of LOOP){
+      await wait(480);
+      const d=document.createElement('div');d.className='tline '+l.c;d.innerHTML=l.h;
+      el.appendChild(d);
+    }
+    const cur=document.createElement('div');cur.innerHTML='<span class="cursor"></span>';el.appendChild(cur);
+    await wait(5200);
+  }
+})();
+
+/* ---------- boot sequence ---------- */
+(async function boot(){
+  const b=$('#boot'),box=$('#bootLines');
+  if(reduced){b.remove();return}
+  const lines=[
+    '<span class="og">BATONGATE</span> v1.0 — preflight for vibe-coded repos',
+    '» calibrating launch gauge ........ <span class="ok">OK</span>',
+    '» arming evidence bus ............. <span class="ok">OK</span>',
+    '» queue: 1 worker · sandbox: jailed <span class="ok">OK</span>',
+    '<span class="dim">» ready. click anywhere to skip.</span>'
+  ];
+  let skipped=false;
+  b.addEventListener('click',()=>skipped=true);
+  for(const l of lines){
+    if(skipped)break;
+    const d=document.createElement('div');d.innerHTML=l;box.appendChild(d);
+    await new Promise(r=>setTimeout(r,150));
+  }
+  await new Promise(r=>setTimeout(r,300));
+  b.classList.add('off');
+  setTimeout(()=>b.remove(),800);
+})();
+
+/* ---------- scroll: progress, spy, reveals, counters ---------- */
+addEventListener('scroll',()=>{
+  const h=document.documentElement;
+  $('#prog').style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';
+},{passive:true});
+
+const spy=new IntersectionObserver(es=>{
+  es.forEach(e=>{if(e.isIntersecting)
+    $$('#nl a').forEach(a=>a.classList.toggle('active',a.dataset.sec===e.target.id))});
+},{rootMargin:'-38% 0px -55% 0px'});
+['method','gates','demo','system','safety','plan'].forEach(id=>spy.observe(document.getElementById(id)));
+
+const rev=new IntersectionObserver(es=>{
+  es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');rev.unobserve(e.target)}});
+},{threshold:.12});
+$$('.r, .rv').forEach(el=>rev.observe(el));
+
+const cnt=new IntersectionObserver(es=>{
+  es.forEach(e=>{if(e.isIntersecting){countUp(e.target,+e.target.dataset.count,1100);cnt.unobserve(e.target)}});
+},{threshold:.6});
+$$('[data-count]').forEach(el=>cnt.observe(el));
 </script>
 </body>
 </html>
