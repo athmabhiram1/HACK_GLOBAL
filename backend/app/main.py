@@ -2,8 +2,8 @@
 
 Forked from hackglobal-starter/templates/chat-app/main.py.
 Adds GET /api/healthz + static fallback for /.
-Single-worker asyncio.Queue(maxsize=1) placeholder bound to lifespan
-for the later job pipeline (Tasks 7-8 fill in the worker).
+Single-worker asyncio.Queue(maxsize=1) bound to lifespan;
+worker drains via asyncio.to_thread (Task 7 wiring; Task 8 fills handler).
 """
 
 import asyncio
@@ -25,21 +25,15 @@ INDEX_HTML = """<!doctype html>
 """
 
 
-async def _queue_worker(queue: asyncio.Queue) -> None:
-    """Placeholder single worker; real pipeline lands in Task 7."""
-    while True:
-        job = await queue.get()
-        try:
-            pass  # replaced by build pipeline in later tasks
-        finally:
-            queue.task_done()
+from backend.app.queue import JobQueue, _noop_handler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    queue: asyncio.Queue = asyncio.Queue(maxsize=1)
-    app.state.queue = queue
-    worker = asyncio.create_task(_queue_worker(queue))
+    jobs = JobQueue(maxsize=1)
+    app.state.queue = jobs.queue
+    app.state.jobs = jobs
+    worker = asyncio.create_task(jobs.worker(_noop_handler))
     app.state.worker = worker
     yield
     worker.cancel()
