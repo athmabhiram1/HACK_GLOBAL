@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BatonGate — Launch Score</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1e26; --ink:#e8ecf1; --mut:#9aa3b2;
+          --ok:#34c77b; --warn:#e5a13d; --bad:#e5534b; --line:#2a303b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:720px; margin:0 auto; padding:20px 16px 48px; }
+  header h1 { margin:0 0 4px; font-size:24px; }
+  header p { margin:0 0 16px; color:var(--mut); font-size:14px; }
+  form#gate-form { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+  form#gate-form input[type=text] { flex:1 1 280px; padding:10px 12px;
+      border:1px solid var(--line); border-radius:8px; background:#12151c; color:var(--ink); }
+  button { padding:10px 16px; border:0; border-radius:8px; cursor:pointer;
+      background:#2f6fed; color:#fff; font-weight:600; }
+  button.ghost { background:transparent; border:1px solid var(--line); color:var(--ink); }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+         margin:8px 0 16px; font-size:14px; color:var(--mut); }
+  #error { color:var(--bad); min-height:1.2em; margin:8px 0; font-size:14px; }
+  #status { color:var(--mut); font-size:14px; margin:8px 0; }
+  .scorebar { display:flex; gap:16px; align-items:center; margin:16px 0; }
+  .ring { width:120px; height:120px; flex:0 0 120px; }
+  .ring .num { font-size:28px; font-weight:700; fill:var(--ink); }
+  .pill { display:inline-block; padding:4px 14px; border-radius:999px;
+          font-weight:700; letter-spacing:.06em; }
+  .pill.SHIP { background:rgba(52,199,123,.15); color:var(--ok); border:1px solid var(--ok); }
+  .pill.FIX { background:rgba(229,161,61,.15); color:var(--warn); border:1px solid var(--warn); }
+  .pill.BLOCKED { background:rgba(229,83,75,.15); color:var(--bad); border:1px solid var(--bad); }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px;
+          padding:12px; font-size:14px; }
+  .card.full { grid-column:1 / -1; }
+  .card h3 { margin:0 0 4px; font-size:14px; text-transform:capitalize; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
+  .dot.pass { background:var(--ok); } .dot.warn { background:var(--warn); }
+  .dot.fail { background:var(--bad); } .dot.queued { background:var(--mut); }
+  .card .sum { color:var(--ink); }
+  .card .det { color:var(--mut); font-size:13px; margin-top:6px; word-break:break-word; }
+  .card a { color:#7aa5ff; }
+  #extras { margin:12px 0; }
+  pre#logtail { background:#0a0c10; border:1px solid var(--line); border-radius:10px;
+      padding:12px; max-height:220px; overflow:auto; font-size:12px; white-space:pre-wrap; }
+  ul#drift { padding-left:20px; font-size:14px; }
+  .btns { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
+  #summary { font-size:15px; margin:8px 0; }
+  @media (max-width:560px) {
+    .cards { grid-template-columns:1fr; }
+    .ring { width:84px; height:84px; flex-basis:84px; }
+    .ring .num { font-size:20px; }
+    .wrap { padding:12px 10px 32px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>BatonGate</h1>
+    <p>Paste a repo URL, get a 0&ndash;100 Launch Score + SHIP / FIX / BLOCKED.</p>
+  </header>
+
+  <form id="gate-form">
+    <input id="repo" type="text" name="repo_url"
+           placeholder="https://github.com/owner/repo" autocomplete="off" />
+    <button type="submit" id="analyze">Analyze</button>
+    <button type="button" id="mic" class="ghost" title="Voice input (optional)">&#127908; Mic</button>
+  </form>
+  <div class="row">
+    <label><input type="checkbox" id="demo" /> demo mode</label>
+    <span id="mic-hint">Mic fills the box; typing always works.</span>
+  </div>
+  <div id="error"></div>
+  <div id="status"></div>
+
+  <section id="report" hidden>
+    <div class="scorebar">
+      <svg class="ring" viewBox="0 0 120 120" role="img" aria-label="score ring">
+        <circle cx="60" cy="60" r="52" fill="none" stroke="#2a303b" stroke-width="12"/>
+        <circle id="arc" cx="60" cy="60" r="52" fill="none" stroke="#34c77b"
+                stroke-width="12" stroke-linecap="round" transform="rotate(-90 60 60)"/>
+        <text id="score-num" class="num" x="60" y="70" text-anchor="middle">–</text>
+      </svg>
+      <div>
+        <span id="verdict" class="pill">–</span>
+        <p id="summary"></p>
+      </div>
+    </div>
+
+    <div id="cards" class="cards"></div>
+
+    <div id="extras" hidden>
+      <div class="card full" id="exa-card" hidden>
+        <h3>Fix evidence (Exa, optional)</h3>
+        <div class="det" id="exa-links"></div>
+      </div>
+      <div class="card full" id="voice-card" hidden>
+        <h3>Voice input (Wispr, optional)</h3>
+        <div class="det" id="voice-text"></div>
+      </div>
+    </div>
+
+    <div class="card full" id="cost-card" hidden>
+      <h3>Cost</h3>
+      <div class="det" id="cost-text"></div>
+    </div>
+
+    <h3>Docs drift</h3>
+    <ul id="drift"></ul>
+
+    <div class="btns">
+      <a id="sarif-dl" href="#" download><button type="button" class="ghost">Download SARIF</button></a>
+      <button type="button" id="copy-fix" class="ghost">Copy fix diff</button>
+      <button type="button" id="rebuild" class="ghost">Rebuild</button>
+    </div>
+
+    <h3>Log tail (redacted)</h3>
+    <pre id="logtail"></pre>
+  </section>
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById("gate-form");
+  var repo = document.getElementById("repo");
+  var demo = document.getElementById("demo");
+  var err = document.getElementById("error");
+  var status = document.getElementById("status");
+  var report = document.getElementById("report");
+  var timer = null;
+  var lastUrl = "";
+
+  function showError(msg) { err.textContent = msg || ""; }
+
+  form.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    showError("");
+    var url = repo.value.trim();
+    if (!url) { showError("Paste an https://github.com/owner/repo URL."); return; }
+    lastUrl = url;
+    status.textContent = "Queued…";
+    report.hidden = true;
+    fetch("/api/gate", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({repo_url: url, demo: demo.checked,
+                            voice_transcript: repo.dataset.voice || null})
+    }).then(function (r) {
+      if (r.status === 429) {
+        return r.json().then(function (j) {
+          throw new Error("Worker busy. " + (j.retry_hint || "Retry shortly."));
+        });
+      }
+      if (!r.ok) {
+        return r.json().then(function (j) {
+          throw new Error((j.error || "Request failed.") + " " + (j.fix_hint || ""));
+        });
+      }
+      return r.json();
+    }).then(function (j) { poll(j.job_id); })
+      .catch(function (e) { status.textContent = ""; showError(e.message); });
+  });
+
+  function poll(id) {
+    if (timer) clearInterval(timer);
+    timer = setInterval(function () {
+      fetch("/api/jobs/" + encodeURIComponent(id)).then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (j.status === "done") { clearInterval(timer); status.textContent = ""; render(j); }
+          else { status.textContent = "Status: " + (j.status || "working") + "…"; }
+        })
+        .catch(function () { status.textContent = "Waiting for worker…"; });
+    }, 800);
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c];
+    });
+  }
+
+  function render(j) {
+    report.hidden = false;
+    var score = (typeof j.score === "number") ? j.score : 0;
+    document.getElementById("score-num").textContent = score;
+    var circ = 2 * Math.PI * 52;
+    var arc = document.getElementById("arc");
+    arc.setAttribute("stroke-dasharray", (circ * score / 100) + " " + circ);
+    arc.setAttribute("stroke", score >= 80 ? "#34c77b" : (score >= 50 ? "#e5a13d" : "#e5534b"));
+    var v = document.getElementById("verdict");
+    v.textContent = j.verdict || "–";
+    v.className = "pill " + (j.verdict || "");
+    document.getElementById("summary").textContent = j.inference_summary || "";
+
+    var cards = document.getElementById("cards");
+    cards.innerHTML = "";
+    (j.gates || []).forEach(function (g) {
+      var d = document.createElement("div");
+      d.className = "card";
+      d.innerHTML = "<h3><span class='dot " + esc(g.status) + "'></span>" + esc(g.name) + "</h3>" +
+        "<div class='sum'>" + esc(g.summary) + "</div>";
+      cards.appendChild(d);
+    });
+
+    var hasExa = j.exa_links && j.exa_links.length;
+    var hasVoice = !!j.voice_transcript;
+    document.getElementById("extras").hidden = !(hasExa || hasVoice);
+    document.getElementById("exa-card").hidden = !hasExa;
+    document.getElementById("voice-card").hidden = !hasVoice;
+    if (hasExa) {
+      document.getElementById("exa-links").innerHTML = j.exa_links.map(function (l) {
+        return "<div><a href='" + esc(l.url) + "' target='_blank' rel='noopener'>" +
+          esc(l.title || l.url) + "</a></div>";
+      }).join("");
+    }
+    if (hasVoice) document.getElementById("voice-text").textContent = j.voice_transcript;
+
+    var cost = (j.gates || []).filter(function (g) { return g.name === "cost"; })[0];
+    var cev = (cost && cost.evidence) || {};
+    if (cev.current != null) {
+      document.getElementById("cost-card").hidden = false;
+      document.getElementById("cost-text").textContent =
+        "$" + cev.current + "/mo now → $" + cev.simulated + "/mo sim, saved $" +
+        cev.saved + "/mo, CO2 " + (cev.co2_kg != null ? cev.co2_kg : cev.co2) + " kg. " +
+        (cev.downgrade_cmd || "");
+    } else { document.getElementById("cost-card").hidden = true; }
+
+    var docs = (j.gates || []).filter(function (g) { return g.name === "docs"; })[0];
+    var stale = ((docs && docs.evidence) || {}).stale || [];
+    var drift = document.getElementById("drift");
+    drift.innerHTML = "";
+    stale.forEach(function (s) {
+      var li = document.createElement("li");
+      li.textContent = s.file + ":" + s.line + " expected " + s.expected +
+        " found " + s.found + " — " + (s.proposed_patch || s.proposed || "");
+      drift.appendChild(li);
+    });
+    if (!stale.length) drift.innerHTML = "<li>no drift</li>";
+
+    var build = (j.gates || []).filter(function (g) { return g.name === "build"; })[0];
+    var tail = ((build && build.evidence) || {}).log_tail || "";
+    document.getElementById("logtail").textContent = tail.split("\n").slice(-200).join("\n");
+
+    document.getElementById("sarif-dl").href = (j.artifacts && j.artifacts.sarif) || "#";
+    document.getElementById("copy-fix").onclick = function () {
+      var txt = stale.map(function (s) { return s.proposed_patch || s.proposed || ""; }).join("\n");
+      if (navigator.clipboard) navigator.clipboard.writeText(txt || "");
+    };
+    document.getElementById("rebuild").onclick = function () {
+      repo.value = lastUrl; document.getElementById("analyze").click();
+    };
+  }
+
+  // Mic: record -> webm -> 16kHz mono wav base64 -> POST /api/voice.
+  // Any failure falls back to typed text (voice never blocks).
+  var mic = document.getElementById("mic");
+  mic.addEventListener("click", function () {
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      showError("Voice not supported here — type the repo URL instead.");
+      return;
+    }
+    mic.disabled = true;
+    navigator.mediaDevices.getUserMedia({audio: true}).then(function (stream) {
+      var rec = new MediaRecorder(stream);
+      var chunks = [];
+      rec.ondataavailable = function (e) { chunks.push(e.data); };
+      rec.onstop = function () {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        mic.disabled = false;
+        var blob = new Blob(chunks, {type: rec.mimeType || "audio/webm"});
+        blob.arrayBuffer().then(function (buf) {
+          var AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) { showError("Voice decode unavailable — type the URL instead."); return; }
+          new AC().decodeAudioData(buf).then(function (audio) {
+            var rate = 16000;
+            var src = audio.getChannelData(0);
+            var n = Math.floor(src.length * rate / audio.sampleRate);
+            var pcm = new Int16Array(n);
+            for (var i = 0; i < n; i++) {
+              var s = src[Math.floor(i * audio.sampleRate / rate)] || 0;
+              pcm[i] = Math.max(-32768, Math.min(32767, Math.round(s * 32767)));
+            }
+            var hdr = new ArrayBuffer(44);
+            var dv = new DataView(hdr);
+            function wstr(o, t) { for (var k = 0; k < t.length; k++) dv.setUint8(o + k, t.charCodeAt(k)); }
+            wstr(0, "RIFF"); dv.setUint32(4, 36 + n * 2, true); wstr(8, "WAVE");
+            wstr(12, "fmt "); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+            dv.setUint32(24, rate, true); dv.setUint32(28, rate * 2, true);
+            dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+            wstr(36, "data"); dv.setUint32(40, n * 2, true);
+            var bytes = new Uint8Array(44 + n * 2);
+            bytes.set(new Uint8Array(hdr), 0);
+            for (var m = 0; m < n; m++) {
+              bytes[44 + m * 2] = pcm[m] & 255;
+              bytes[44 + m * 2 + 1] = (pcm[m] >> 8) & 255;
+            }
+            var bin = "";
+            var CH = 8192;
+            for (var o = 0; o < bytes.length; o += CH) {
+              bin += String.fromCharCode.apply(null, bytes.subarray(o, o + CH));
+            }
+            fetch("/api/voice", {
+              method: "POST", headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({audio_b64: btoa(bin)})
+            }).then(function (r) { return r.json(); }).then(function (j2) {
+              if (j2.transcript) { repo.value = j2.transcript; repo.dataset.voice = j2.transcript; }
+              else showError("No transcript — type the repo URL instead.");
+            }).catch(function () { showError("Voice unavailable — type the repo URL instead."); });
+          }).catch(function () { showError("Voice decode failed — type the URL instead."); });
+        });
+      };
+      rec.start();
+      setTimeout(function () { if (rec.state !== "inactive") rec.stop(); }, 8000);
+    }).catch(function () {
+      mic.disabled = false;
+      showError("Mic blocked — type the repo URL instead.");
+    });
+  });
+})();
+</script>
+</body>
+</html>
